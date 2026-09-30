@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}회원 페이지 - 모임 신청{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>안녕하세요, {{ user.nickname }}님!</h2>
+  <table style="margin-top:12px;">
+    <tr><th style="width:100px;">이름</th><td>{{ user.name }}</td></tr>
+    <tr><th>전화번호</th><td>{{ user.phone }}</td></tr>
+    <tr><th>닉네임</th><td>{{ user.nickname }}</td></tr>
+    <tr><th>역할</th>
+      <td>
+        {% if user.role == 'host' or host_app_status == 'approved' %}
+          <span class="badge" style="background:#fef3c7; color:#d97706;">호스트</span>
+        {% elif user.role == 'general' and host_app_status == 'pending' %}
+          <span class="badge" style="background:#eef0f3; color:#6b7280;">호스트 심사 중</span>
+        {% else %}
+          <span class="badge" style="background:#dcfce7; color:#16a34a;">일반 회원</span>
+        {% endif %}
+      </td>
+    </tr>
+    <tr><th>가입일</th><td>{{ user.created_at[:10] }}</td></tr>
+  </table>
+  {% if user.role == 'general' and host_app_status != 'approved' and host_app_status != 'pending' %}
+  <button type="button" class="btn primary" style="font-size:14px; margin-top:16px;" onclick="document.getElementById('hostModal').style.display='flex'">호스트 되기 신청</button>
+  <p class="muted" style="margin:8px 0 0; font-size:0.85rem;">모임을 만들고 관리하고 싶다면 신청해 주세요. 관리자 승인 시 호스트 권한이 부여됩니다.</p>
+  {% endif %}
+</div>
+
+<!-- 호스트 신청 팝업 -->
+<div id="hostModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:12px; padding:28px; max-width:520px; width:90%; max-height:90vh; overflow-y:auto;">
+    <h2 style="margin-top:0;">호스트 되기 신청</h2>
+    <p class="muted" style="margin-top:0; font-size:0.9rem;">아래 정보를 작성해 주세요. 관리자가 확인 후 승인을 결정합니다.</p>
+    <form method="post" action="{{ url_for('account_apply_host') }}">
+      <label style="display:block; margin-bottom:6px; font-weight:600;">주 활동 분야 *</label>
+      <input type="text" name="activity_area" required placeholder="예: 등산, 캠핑, 마라톤" style="width:100%; padding:10px; margin-bottom:14px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
+      <label style="display:block; margin-bottom:6px; font-weight:600;">그동안의 주최 경력 *</label>
+      <textarea name="hosting_experience" required placeholder="예: ○○ 클럽 2년간 운영, 총 12회 모임 주최" rows="3" style="width:100%; padding:10px; margin-bottom:14px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box; resize:vertical;"></textarea>
+      <label style="display:block; margin-bottom:6px; font-weight:600;">활동 계획 *</label>
+      <textarea name="activity_plan" required placeholder="예: 월 1회 산행 모임 주최, 안전관리 체크리스트 도입" rows="3" style="width:100%; padding:10px; margin-bottom:20px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box; resize:vertical;"></textarea>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" class="btn secondary" onclick="document.getElementById('hostModal').style.display='none'">취소</button>
+        <button type="submit" class="btn primary">신청하기</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>내 신청 기록</h2>
+  {% if my_apps %}
+    <table>
+      <tr><th>#</th><th>모임</th><th>날짜/시간</th><th>장소</th><th>신청일</th><th>상태</th></tr>
+      {% for a in my_apps %}
+      <tr>
+        <td style="text-align:center; color:#9ca3af;">{{ loop.index }}</td>
+        <td class="cell-ellipsis" title="{{ a.meetup_title }}">{{ a.meetup_title }}{% if a.is_ended %} <span class="tag ended">종료</span>{% endif %}</td>
+        <td style="white-space:nowrap;">{{ a.meetup_start.replace('T', ' ') }}</td>
+        <td class="cell-ellipsis" title="{{ a.place }}">{{ a.place }}</td>
+        <td style="white-space:nowrap;">{{ a.created_at[:16] }}</td>
+        <td style="white-space:nowrap;">
+          {% if a.is_cancelled %}
+            <span class="tag ended">취소됨</span>
+            <p class="muted" style="margin:4px 0 0; font-size:0.82rem; white-space:normal; max-width:180px;">
+              {{ a.cancel_reason or '미상' }}
+            </p>
+          {% else %}
+            <span class="tag open">신청 중</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p class="muted">아직 신청한 모임이 없습니다.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>💰 코인</h2>
+  <p style="margin:8px 0; font-size:1.1rem;">잔액: <strong>{{ "{:,}".format(coin_balance) }}</strong> 코인</p>
+  {% if pending_payment %}
+  <p class="muted" style="font-size:0.9rem;">⏳ {{ "{:,}".format(pending_payment.amount) }}원 결제 심사 중 (신청일: {{ pending_payment.created_at[:16] }})</p>
+  {% else %}
+  <form method="post" action="{{ url_for('account_pay') }}" style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+    <input type="number" name="amount" min="100" max="1000000" step="100" placeholder="충전 금액 (원)" required
+           style="width:160px; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px;">
+    <button type="submit" class="btn primary" style="font-size:14px; padding:8px 16px;">결제하기</button>
+  </form>
+  {% endif %}
+  {% if coin_history %}
+  <table style="margin-top:16px; font-size:0.9rem;">
+    <tr><th>날짜</th><th>내용</th><th>변동</th><th>잔액</th></tr>
+    {% for c in coin_history %}
+    <tr>
+      <td>{{ c.created_at[:16] }}</td>
+      <td>
+        {% if c.reason == 'charge' %}
+          💳 충전
+        {% elif c.reason == 'refund' %}
+          💰 환불 — {{ c.meetup_title if c.meetup_title else '모임 #' + (c.meetup_id | string) }}
+        {% else %}
+          🎯 활동비 — {{ c.meetup_title if c.meetup_title else '모임 #' + (c.meetup_id | string) }}
+        {% endif %}
+      </td>
+      <td style="color:{% if c.change >= 0 %}#16a34a{% else %}#dc2626{% endif %}; font-weight:600;">
+        {% if c.change >= 0 %}+{% endif %}{{ "{:,}".format(c.change) }}
+      </td>
+      <td>{{ "{:,}".format(c.balance) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+
+<div class="card" style="border-left: 4px solid var(--bad); background: linear-gradient(to right, #fff5f5, #fff);">
+  <h2 style="color:var(--bad); display:flex; align-items:center; gap:8px;">
+    <span style="font-size:1.2rem;">⚠️</span> 회원 탈퇴
+  </h2>
+  <p class="muted" style="margin-bottom:16px;">탈퇴하면 계정이 삭제되고, 내 신청 기록과 코인 잔액도 함께 사라집니다.<br>이 작업은 <strong style="color:var(--bad);">되돌릴 수 없습니다.</strong></p>
+  <form method="post" action="{{ url_for('account_delete') }}"
+        onsubmit="return confirm('정말 탈퇴할까요? 이 작업은 되돌릴 수 없습니다.');">
+    <button type="submit" class="btn danger" style="padding:10px 24px; font-size:14px;">
+      계정 탈퇴하기
+    </button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}신청 취소 - {{ meetup.title }}{% endblock %}
+{% block content %}
+<a href="{{ url_for('detail', meetup_id=meetup.id) }}" class="muted">← 모임 상세로 돌아가기</a>
+
+<div class="card" style="max-width: 520px; margin-top: 16px;">
+  <h1>신청 취소</h1>
+  <p class="muted">{{ meetup.title }}의 신청을 취소하시겠습니까?</p>
+
+  {% if ended %}
+    <div class="flash error">이미 종료된 모임이라 취소할 수 없습니다.</div>
+    <div class="row" style="margin-top: 16px;">
+      <a class="btn secondary" href="{{ url_for('detail', meetup_id=meetup.id) }}">돌아가기</a>
+    </div>
+  {% else %}
+    <form method="get" action="{{ url_for('cancel', meetup_id=meetup.id) }}" style="margin-bottom: 8px;">
+      <label>전화번호 (신청 시 사용한 번호)</label>
+      <input type="tel" name="phone" required value="{{ phone }}" placeholder="010-1234-5678"
+             pattern="{{ PHONE_PATTERN }}" title="010-0000-0000 형식으로 입력해 주세요">
+      <div class="row" style="margin-top: 12px;">
+        <button type="submit" class="btn secondary">확인하기</button>
+      </div>
+    </form>
+
+    <hr style="border: none; border-top: 1px solid var(--line); margin: 20px 0;">
+
+    {% if app %}
+      <p style="margin: 0 0 8px;"><b>취소할 신청 내역</b></p>
+      <div class="kv"><b>모임</b>{{ meetup.title }}</div>
+      <div class="kv"><b>이름</b>{{ app.name }}</div>
+      <div class="kv"><b>전화번호</b>{{ app.phone }}</div>
+      <div class="kv"><b>신청 시각</b>{{ app.created_at }}</div>
+
+      <form method="post" action="{{ url_for('cancel', meetup_id=meetup.id) }}"
+            onsubmit="return confirm('정말 이 신청을 취소할까요?\n\n{{ app.name }} ({{ app.phone }})\n\n취소하면 다시 신청해야 합니다.');">
+        <input type="hidden" name="phone" value="{{ app.phone }}">
+        <div class="row" style="margin-top: 20px;">
+          <button type="submit" class="btn danger">정말 취소하기</button>
+          <a class="btn secondary" href="{{ url_for('detail', meetup_id=meetup.id, phone=app.phone) }}">아니요, 돌아가기</a>
+        </div>
+      </form>
+    {% elif phone %}
+      <div class="flash info">해당 전화번호로 등록된 신청이 없습니다. 전화번호를 확인해 주세요.</div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

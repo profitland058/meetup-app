@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}신청자 삭제 - 관리자{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin_applications', meetup_id=app.meetup_id) }}" class="muted">← 신청자 명단으로 돌아가기</a>
+
+<div class="card" style="max-width: 520px; margin-top: 16px;">
+  <h1>신청자 삭제</h1>
+  <p class="muted">아래 신청자를 삭제하시겠습니까? 삭제 사유를 선택해 주세요.<br>
+  삭제된 신청자는 자신의 모임 화면에서 그 사유를 확인할 수 있습니다.</p>
+
+  <div class="kv"><b>모임</b>{{ app.meetup_id }}번</div>
+  <div class="kv"><b>이름</b>{{ app.name }}</div>
+  <div class="kv"><b>전화번호</b>{{ app.phone }}</div>
+  <div class="kv"><b>신청 시각</b>{{ app.created_at }}</div>
+
+  <form method="post" action="{{ url_for('admin_delete_application', application_id=app.id) }}"
+        onsubmit="return confirm('정말 이 신청자를 삭제할까요?\n\n{{ app.name }} ({{ app.phone }})');">
+    <label style="margin-top: 18px;">삭제 사유</label>
+    <select name="reason" required>
+      <option value="" disabled selected>사유를 선택하세요</option>
+      {% for r in reasons %}
+      <option value="{{ r }}">{{ r }}</option>
+      {% endfor %}
+    </select>
+    <div class="row" style="margin-top: 20px;">
+      <button type="submit" class="btn danger">삭제하기</button>
+      <a class="btn secondary" href="{{ url_for('admin_applications', meetup_id=app.meetup_id) }}">취소</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}관리자 로그인 - 모임 신청{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 380px; margin: 40px auto;">
+  <h1>관리자 모드</h1>
+  <p class="muted">관리자 비밀번호를 입력해 주세요.</p>
+  <form method="post">
+    <label>비밀번호</label>
+    <input type="password" name="password" required autofocus>
+    <div class="row" style="margin-top: 16px;">
+      <button type="submit" class="btn">입장하기</button>
+      <a class="btn secondary" href="{{ url_for('index') }}">취소</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

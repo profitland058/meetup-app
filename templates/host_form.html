@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+{% block title %}{{ '모임 수정' if meetup else '새 모임 만들기' }} - 호스트{% endblock %}
+{% block content %}
+<h1>{{ '📝 모임 수정' if meetup else '🎪 새 모임 만들기' }}</h1>
+<div class="card">
+  <form method="post" enctype="multipart/form-data">
+    <div>
+      <label>모임 제목 *</label>
+      <input type="text" name="title" value="{{ meetup.title if meetup }}" required maxlength="100" placeholder="예: 주말 아침 러닝 클럽">
+    </div>
+    <div>
+      <label>날짜/시간 *</label>
+      <input type="datetime-local" name="start_at" value="{{ meetup.start_at[:16] if meetup }}" required>
+    </div>
+    <div>
+      <label>장소 *</label>
+      <input type="text" id="place" name="place" value="{{ meetup.place if meetup }}" required maxlength="200" placeholder="예: 종로구 대학로 123 카페 휴">
+    </div>
+
+    <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:14px; margin:12px 0;">
+      <label style="font-weight:600;">📍 모임 장소 검색</label>
+      <p class="muted" style="margin:4px 0 8px;">지역이나 도로명, 가게명을 입력하면 매칭되는 장소가 보입니다. 클릭하면 장소에 채워집니다.</p>
+      <input type="text" id="cafe-search" placeholder="예: 종로, 청계천로, 스타벅스" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #ccc; border-radius:6px;" autocomplete="off">
+      <div id="cafe-results" style="max-height:280px; overflow-y:auto; margin-top:8px;"></div>
+    </div>
+
+    <div>
+      <label>정원 (최대 인원) *</label>
+      <input type="number" name="capacity" value="{{ meetup.capacity if meetup }}" min="1" max="999" required>
+    </div>
+    <div>
+      <label>참가비 (원, 공란이면 무료)</label>
+      <input type="number" name="fee" value="{{ meetup.fee if meetup and meetup.fee > 0 }}" min="0" step="100" placeholder="0">
+    </div>
+    <div>
+      <label>소개글</label>
+      <textarea name="description" rows="4" placeholder="모임 소개를 자유롭게 적어 주세요." maxlength="2000">{{ meetup.description if meetup }}</textarea>
+    </div>
+
+    {% set photos = (meetup.photos|photos) if meetup else [] %}
+    <div>
+      <label>모임 사진 (최대 5개)</label>
+      <div id="photo-list" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+        {% for p in photos %}
+        <div class="photo-item" data-idx="{{ loop.index0 }}" style="position:relative; width:100px; height:100px;">
+          <img src="{{ p }}" alt="사진 {{ loop.index }}" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border:1px solid #ccc;">
+          {% if loop.first %}<span style="position:absolute; bottom:4px; left:4px; background:rgba(0,0,0,.6); color:#fff; font-size:10px; padding:1px 6px; border-radius:4px;">썸네일</span>{% endif %}
+          <button type="button" class="photo-remove" data-idx="{{ loop.index0 }}" title="삭제" style="position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; background:#e74c3c; color:#fff; border:none; cursor:pointer; font-size:14px; line-height:22px; text-align:center; padding:0;">×</button>
+          <input type="hidden" name="remove_photo_{{ loop.index0 }}" value="">
+        </div>
+        {% endfor %}
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <input type="file" name="photos[]" accept=".png,.jpg,.jpeg,.gif,.webp" multiple id="photo-upload" style="flex:1;">
+        <span class="muted" id="photo-count" style="font-size:13px; white-space:nowrap;">{{ photos|length }}/5</span>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:16px;">
+      <button type="submit" class="btn primary">{{ '수정하기' if meetup else '등록하기' }}</button>
+      <a href="{{ url_for('host_index') }}" class="btn secondary">취소</a>
+    </div>
+  </form>
+</div>
+
+{% if meetup %}
+<div class="card" style="margin-top:24px;">
+  <h2 style="font-size:18px; margin-bottom:16px;">👥 신청자 ({{ apps|length }}명)</h2>
+  {% if apps %}
+  <table>
+    <tr><th>ID</th><th>이름</th><th>닉네임</th><th>전화번호</th><th>신청일</th><th>삭제</th></tr>
+    {% for app in apps %}
+    <tr>
+      <td>{{ app.app_id }}</td>
+      <td>{{ app.name }}</td>
+      <td>{{ app.nickname }}</td>
+      <td>{{ app.phone }}</td>
+      <td>{{ app.created_at[:16] }}</td>
+      <td>
+        <button type="button" class="btn danger small-btn" onclick="openDeleteModal({{ app.app_id }}, '{{ app.name }}')">삭제</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:#999; text-align:center; padding:16px;">아직 신청자가 없습니다.</p>
+  {% endif %}
+</div>
+
+{% if removed_apps %}
+<div class="card" style="margin-top:16px; border-left:3px solid var(--muted);">
+  <h2 style="font-size:16px; color:var(--muted); margin-bottom:12px;">🗑️ 삭제된 신청자 ({{ removed_apps|length }}명)</h2>
+  <table>
+    <tr><th>ID</th><th>이름</th><th>닉네임</th><th>전화번호</th><th>삭제 사유</th><th>삭제일</th><th>복구</th></tr>
+    {% for app in removed_apps %}
+    <tr style="opacity:.7;">
+      <td>{{ app.app_id }}</td>
+      <td>{{ app.name }}</td>
+      <td>{{ app.nickname }}</td>
+      <td>{{ app.phone }}</td>
+      <td class="cell-ellipsis" title="{{ app.cancel_reason or '미상' }}">{{ app.cancel_reason or '미상' }}</td>
+      <td>{{ app.cancelled_at[:16] if app.cancelled_at else '' }}</td>
+      <td>
+        <form method="post" action="{{ url_for('host_restore_app', meetup_id=meetup.id, application_id=app.app_id) }}" onsubmit="return confirm('{{ app.name }}님의 신청을 복구하시겠습니까?');">
+          <button type="submit" class="btn secondary small-btn">복구</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<div class="row" style="gap:8px; margin-top:24px;">
+  {% if meetup.recruit_closed %}
+  <form method="post" action="{{ url_for('host_toggle_recruit', meetup_id=meetup.id) }}">
+    <button type="submit" class="btn secondary">모집 재개</button>
+  </form>
+  {% else %}
+  <form method="post" action="{{ url_for('host_toggle_recruit', meetup_id=meetup.id) }}" onsubmit="return confirm('모집을 종료하시겠습니까? 종료된 모임에는 새로운 신청이 접수되지 않습니다.');">
+    <button type="submit" class="btn secondary">모집 종료</button>
+  </form>
+  {% endif %}
+  <form method="post" action="{{ url_for('host_delete_meetup', meetup_id=meetup.id) }}" onsubmit="return confirm('정말 이 모임을 삭제할까요? 되돌릴 수 없습니다.');">
+    <button type="submit" class="btn danger">모임 삭제</button>
+  </form>
+</div>
+{% endif %}
+
+<!-- 삭제 사유 모달 -->
+<div id="delete-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.45); z-index:999; justify-content:center; align-items:center;">
+  <div style="background:#fff; border-radius:12px; padding:28px; width:420px; max-width:90vw; box-shadow:0 8px 32px rgba(0,0,0,.18);">
+    <h2 style="font-size:17px; margin-bottom:4px;">신청자 삭제</h2>
+    <p id="delete-modal-name" style="color:#666; font-size:14px; margin-bottom:16px;"></p>
+    <form id="delete-modal-form" method="post">
+      <div style="margin-bottom:12px;">
+        <label style="font-weight:600; display:block; margin-bottom:6px;">삭제 사유 *</label>
+        <select name="cancel_reason" required style="width:100%; padding:8px 10px; border:1px solid #ccc; border-radius:6px; font-size:14px;">
+          <option value="">사유를 선택하세요</option>
+          <option value="정원 초과">정원 초과</option>
+          <option value="부적절한 신청 내용">부적절한 신청 내용</option>
+          <option value="중복 신청">중복 신청</option>
+          <option value="스팸/광고 의심">스팸/광고 의심</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:600; display:block; margin-bottom:6px;">상세 사유 (선택)</label>
+        <textarea name="cancel_detail" rows="3" placeholder="추가 설명을 적어 주세요 (선택)" style="width:100%; padding:8px 10px; border:1px solid #ccc; border-radius:6px; font-size:14px; resize:vertical;"></textarea>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button type="button" class="btn secondary" onclick="closeDeleteModal()">취소</button>
+        <button type="submit" class="btn danger">삭제 확인</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+var _deleteAppId = null;
+function openDeleteModal(appId, userName) {
+  _deleteAppId = appId;
+  document.getElementById('delete-modal-name').textContent = userName + '님의 신청을 삭제합니다.';
+  document.getElementById('delete-modal').style.display = 'flex';
+}
+function closeDeleteModal() {
+  document.getElementById('delete-modal').style.display = 'none';
+  document.getElementById('delete-modal-form').reset();
+}
+{% if meetup %}
+document.getElementById('delete-modal-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  this.action = "{{ url_for('host_delete_app', meetup_id=meetup.id, application_id=0) }}".replace('/0/', '/' + _deleteAppId + '/');
+  this.submit();
+});
+{% endif %}
+document.getElementById('delete-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeDeleteModal();
+});
+
+(function() {
+  var input = document.getElementById('cafe-search');
+  var results = document.getElementById('cafe-results');
+  var placeInput = document.getElementById('place');
+  var timer = null;
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, function(c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function search() {
+    var q = input.value.trim();
+    if (!q) { results.innerHTML = ''; return; }
+    fetch('/api/cafes?q=' + encodeURIComponent(q))
+      .then(function(r) { return r.json(); })
+      .then(function(list) {
+        if (!list.length) {
+          results.innerHTML = '<p class="muted">검색 결과가 없습니다.</p>';
+          return;
+        }
+        var html = '<table style="width:100%; font-size:0.88rem;"><tr><th>가게명</th><th>주소</th></tr>';
+        list.forEach(function(c) {
+          var fullPlace = c.name ? c.name + ' (' + c.road_address + ')' : c.road_address;
+          html += '<tr data-place="' + escapeHtml(fullPlace) + '" style="cursor:pointer;">'
+                + '<td><strong>' + escapeHtml(c.name || '-') + '</strong></td>'
+                + '<td>' + escapeHtml(c.road_address) + '</td></tr>';
+        });
+        html += '</table>';
+        results.innerHTML = html;
+        Array.prototype.forEach.call(results.querySelectorAll('tr[data-place]'), function(tr) {
+          tr.addEventListener('click', function() {
+            placeInput.value = this.getAttribute('data-place');
+            results.innerHTML = '';
+            input.value = '';
+          });
+        });
+      });
+  }
+
+  input.addEventListener('input', function() {
+    clearTimeout(timer);
+    timer = setTimeout(search, 300);
+  });
+})();
+
+// 사진 삭제 버튼
+document.querySelectorAll('.photo-remove').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var idx = this.getAttribute('data-idx');
+    var item = this.closest('.photo-item');
+    if (!confirm('이 사진을 삭제할까요?')) return;
+    item.style.display = 'none';
+    var hidden = document.querySelector('input[name="remove_photo_' + idx + '"]');
+    if (hidden) hidden.value = idx;
+    updatePhotoCount();
+  });
+});
+
+// 파일 선택 시 즉시 미리보기 + DataURL로 서버 전송
+var photoUpload = document.getElementById('photo-upload');
+if (photoUpload) {
+  photoUpload.addEventListener('change', function() {
+    var files = Array.from(this.files);
+    var list = document.getElementById('photo-list');
+    var visible = list.querySelectorAll('.photo-item:not([style*="display: none"])');
+    var remaining = 5 - visible.length;
+
+    files.forEach(function(file) {
+      if (remaining <= 0) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        // hidden input에 DataURL 저장 (서버에서 이미지로 변환)
+        var hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'photo_data[]';
+        hidden.value = e.target.result;
+        hidden.dataset.filename = file.name;
+        list.appendChild(hidden);
+
+        // 미리보기 표시
+        var div = document.createElement('div');
+        div.className = 'photo-item preview';
+        div.style.cssText = 'position:relative; width:100px; height:100px;';
+        div.innerHTML = '<img src="' + e.target.result + '" alt="새 사진" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border:1px solid #ccc;">' +
+          '<button type="button" class="photo-remove-preview" title="삭제" style="position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; background:#e74c3c; color:#fff; border:none; cursor:pointer; font-size:14px; line-height:22px; text-align:center; padding:0;">×</button>';
+        div.querySelector('.photo-remove-preview').addEventListener('click', function() {
+          div.remove();
+          hidden.remove();
+          updatePhotoCount();
+        });
+        list.appendChild(div);
+        updatePhotoCount();
+      };
+      reader.readAsDataURL(file);
+      remaining--;
+    });
+    // 입력 초기화 (같은 파일 다시 선택 가능 — DataURL은 이미 hidden input에 저장됨)
+    this.value = '';
+  });
+}
+
+function updatePhotoCount() {
+  var visible = document.querySelectorAll('#photo-list .photo-item:not([style*="display: none"])');
+  var counter = document.getElementById('photo-count');
+  if (counter) counter.textContent = visible.length + '/5';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}관리자 - 회원 관리{% endblock %}
+{% block content %}
+<h1>회원 관리</h1>
+<div class="card">
+  <div style="display:flex; gap:8px; margin-bottom:20px;">
+    <a href="{{ url_for('admin_index') }}" class="btn secondary">모임 관리</a>
+    <a href="{{ url_for('admin_users') }}" class="btn primary">회원 관리</a>
+    <a href="{{ url_for('admin_payments') }}" class="btn secondary">결제 관리</a>
+    <a href="{{ url_for('admin_board') }}" class="btn secondary">공지 관리</a>
+  </div>
+
+  <div style="margin-bottom:16px; padding:12px; background:#f9fafb; border-radius:8px; display:flex; align-items:center; gap:8px;">
+    <span style="font-weight:600; color:#6b7280; font-size:0.9em;">분류:</span>
+    <a href="{{ url_for('admin_users') }}" class="btn {{ 'primary' if not active_role else 'secondary' }}" style="padding:4px 12px; font-size:0.9em;">전체 ({{ general_count + host_count }})</a>
+    <a href="{{ url_for('admin_users', role='general') }}" class="btn {{ 'primary' if active_role == 'general' else 'secondary' }}" style="padding:4px 12px; font-size:0.9em;">일반 회원 ({{ general_count }})</a>
+    <a href="{{ url_for('admin_users', role='host') }}" class="btn {{ 'primary' if active_role == 'host' else 'secondary' }}" style="padding:4px 12px; font-size:0.9em;">호스트 ({{ host_count }})</a>
+  </div>
+
+  {% if users %}
+  <table>
+    <tr><th>ID</th><th>이름</th><th>닉네임</th><th>전화번호</th><th>역할</th><th>가입일</th><th>상세정보</th></tr>
+    {% for u in users %}
+    <tr>
+      <td>{{ u.id }}</td>
+      <td>{{ u.name }}</td>
+      <td>{{ u.nickname }}</td>
+      <td>{{ u.phone }}</td>
+      <td>
+        {% if u.role == 'admin' %}<span class="tag ended">관리자</span>
+        {% elif u.role == 'host' %}<span class="tag full">호스트</span>
+        {% else %}<span class="tag open">일반</span>{% endif %}
+      </td>
+      <td>{{ u.created_at[:10] }}</td>
+      <td>
+        <a href="{{ url_for('admin_user_detail', user_id=u.id) }}" class="btn secondary" style="padding:4px 12px; font-size:12px;">상세정보</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">등록된 회원이 없습니다.</p>
+  {% endif %}
+</div>
+
+{% if pending_host_apps %}
+<div class="card" style="margin-top:16px; border-left:3px solid var(--brand);">
+  <h2 style="font-size:16px;">📋 호스트 신청 ({{ pending_host_apps|length }}건 대기)</h2>
+  <table style="margin-top:12px; width:100%; font-size:14px;">
+    <tr><th>ID</th><th>이름</th><th>닉네임</th><th>전화번호</th><th>신청일</th><th>주 활동 분야</th><th>주최 경력</th><th>활동 계획</th><th>처리</th></tr>
+    {% for app in pending_host_apps %}
+    <tr>
+      <td>{{ app.id }}</td>
+      <td>{{ app.name }}</td>
+      <td>{{ app.nickname }}</td>
+      <td>{{ app.phone }}</td>
+      <td>{{ app.applied_at[:16] }}</td>
+      <td style="max-width:150px; white-space:pre-wrap; vertical-align:top;">{{ app.activity_area or '-' }}</td>
+      <td style="max-width:180px; white-space:pre-wrap; vertical-align:top;">{{ app.hosting_experience or '-' }}</td>
+      <td style="max-width:180px; white-space:pre-wrap; vertical-align:top;">{{ app.activity_plan or '-' }}</td>
+      <td style="white-space:nowrap;">
+        <form method="post" action="{{ url_for('admin_decide_host_app', app_id=app.id) }}" style="display:inline;" onsubmit="return confirm('{{ app.name }}님의 호스트 신청을 승인하시겠습니까?');">
+          <input type="hidden" name="_action" value="approve">
+          <button type="submit" class="btn primary" style="padding:4px 10px; font-size:12px;">승인</button>
+        </form>
+        <form method="post" action="{{ url_for('admin_decide_host_app', app_id=app.id) }}" style="display:inline;" onsubmit="return confirm('{{ app.name }}님의 호스트 신청을 거절하시겠습니까?');">
+          <input type="hidden" name="_action" value="reject">
+          <button type="submit" class="btn secondary" style="padding:4px 10px; font-size:12px;">거절</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}

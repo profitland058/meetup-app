@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}회원가입{% endblock %}
+{% block content %}
+<h1>회원가입</h1>
+<div class="card">
+  <form method="post">
+    <div>
+      <label>이름 *</label>
+      <input type="text" name="name" required maxlength="50">
+    </div>
+    <div>
+      <label>닉네임 *</label>
+      <input type="text" name="nickname" required maxlength="30" placeholder="모임 목록에 표시될 닉네임">
+    </div>
+    <div>
+      <label>전화번호 *</label>
+      <input type="tel" name="phone" required pattern="{{ PHONE_PATTERN }}" title="010-0000-0000 형식" placeholder="010-0000-0000">
+    </div>
+    <button type="submit" class="btn primary" style="margin-top:16px;">가입하기</button>
+  </form>
+</div>
+{% endblock %}

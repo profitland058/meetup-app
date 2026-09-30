@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ meetup.title }} 신청자 - 관리자{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin_index') }}" class="muted">← 관리 목록으로</a>
+<h1 style="margin-top: 12px;">{{ meetup.title }} — 신청자</h1>
+
+<div class="card">
+  <div class="row" style="justify-content: space-between; align-items: center;">
+    <span class="kv"><b>날짜</b>{{ meetup.start_at.replace('T', ' ') }}</span>
+    <span class="badge {{ 'gray' if ended else ('bad' if applied >= meetup.capacity else 'ok') }}">
+      {{ '종료' if ended else ('정원 마감' if applied >= meetup.capacity else '진행 중') }}
+    </span>
+  </div>
+  <p class="muted" style="margin-bottom: 8px;">총 {{ applied }} / {{ meetup.capacity }}명</p>
+
+  {% if apps %}
+    <table>
+      <tr><th>#</th><th>이름</th><th>전화번호</th><th>신청 시각</th><th></th></tr>
+      {% for a in apps %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ a.name }}</td>
+        <td>{{ a.phone }}</td>
+        <td>{{ a.created_at }}</td>
+        <td style="text-align: right;">
+          <form method="post" action="{{ url_for('admin_delete_application', application_id=a.id) }}" style="display:inline;" onsubmit="return confirm('이 신청자를 삭제할까요?');">
+            <button type="submit" class="btn danger small">삭제</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p class="muted">아직 신청자가 없습니다.</p>
+  {% endif %}
+</div>
+{% endblock %}

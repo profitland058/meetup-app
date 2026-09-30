@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+data.db
+config.txt
+uploads/
+.omnicoder/

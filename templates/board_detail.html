@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} - 공지{% endblock %}
+{% block content %}
+<h1>{{ post.title }}</h1>
+<div class="card">
+  <p class="muted">{{ post.author_name }} · {{ post.created_at[:16] }} · 조회 {{ post.views }}</p>
+  <hr style="border:none; border-top:1px solid #e5e7eb; margin:12px 0;">
+  <div style="white-space:pre-wrap; line-height:1.7;">{{ post.content }}</div>
+</div>
+<a href="{{ url_for('board_index') }}" class="btn secondary" style="margin-top:16px;">← 목록으로</a>
+{% endblock %}

@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block title %}{{ '모임 수정' if meetup else '새 모임 등록' }} - 관리자{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin_index') }}" class="muted">← 관리 목록으로</a>
+<h1 style="margin-top: 12px;">{{ '모임 수정' if meetup else '새 모임 등록' }}</h1>
+
+{# ro: 읽기 전용 모드 — 현재 사용 안 함 (모든 필드 항상 편집 가능) #}
+{% set ro = false %}
+<form method="post" enctype="multipart/form-data" class="card" {% if ro %}style="opacity:.85;"{% endif %}>
+  <label>제목 *</label>
+  <input type="text" name="title" required value="{{ meetup.title if meetup else '' }}" placeholder="금요일 저녁 독서 모임" {% if ro %}readonly style="background:#f3f4f6; color:#6b7280; cursor:not-allowed;"{% endif %}>
+
+  <div class="grid2">
+    <div>
+      <label>날짜/시간 *</label>
+      <input type="datetime-local" name="start_at" required
+             value="{{ (meetup.start_at[:16] if meetup else '') }}" {% if ro %}readonly style="background:#f3f4f6; color:#6b7280; cursor:not-allowed;"{% endif %}>
+    </div>
+    <div>
+      <label>장소 *</label>
+      <input type="text" name="place" id="place-input" required value="{{ meetup.place if meetup else '' }}" placeholder="카페 베리베리 2층" {% if ro %}readonly style="background:#f3f4f6; color:#6b7280; cursor:not-allowed;"{% endif %}>
+    </div>
+  </div>
+
+  {% if not ro %}
+  <div class="card" style="background:#f9fafb; border-color:#e5e7eb;">
+    <label>📍 모임 장소 검색 (가게명·주소·지역 모두 가능)</label>
+    <input type="text" id="cafe-search" placeholder="예: 청계천로, 종로, 스타벅스" autocomplete="off" style="width:100%; max-width:360px;">
+    <div id="cafe-results" style="margin-top:8px;"></div>
+  </div>
+  {% endif %}
+
+  <div class="grid2">
+    <div>
+      <label>정원 (명) *</label>
+      <input type="number" name="capacity" min="1" required value="{{ meetup.capacity if meetup else '' }}" placeholder="8" {% if ro %}readonly style="background:#f3f4f6; color:#6b7280; cursor:not-allowed;"{% endif %}>
+    </div>
+    <div>
+      <label>참가비 (원, 0이면 무료)</label>
+      <input type="number" name="fee" min="0" step="100" value="{{ meetup.fee if meetup else 0 }}" placeholder="5000" {% if ro %}readonly style="background:#f3f4f6; color:#6b7280; cursor:not-allowed;"{% endif %}>
+    </div>
+  </div>
+
+  <label>관리자 닉네임 *</label>
+  <input type="text" name="host_nickname" required value="{{ meetup.host_nickname if meetup else '' }}" placeholder="김독서" {% if ro %}readonly style="background:#f3f4f6; color:#6b7280; cursor:not-allowed;"{% endif %}>
+
+  <label>소개글 (선택)</label>
+  <textarea name="description" placeholder="이번 주 책, 준비물 등 안내 문구" {% if ro %}readonly style="background:#f3f4f6; color:#6b7280; cursor:not-allowed;"{% endif %}>{{ meetup.description if meetup else '' }}</textarea>
+
+  {% set photos = (meetup.photos|photos) if meetup else [] %}
+  <label>모임 사진 (최대 5개)</label>
+  <div id="photo-list" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+    {% for p in photos %}
+    <div class="photo-item" data-idx="{{ loop.index0 }}" style="position:relative; width:100px; height:100px;">
+      <img src="{{ p }}" alt="사진 {{ loop.index }}" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border:1px solid var(--line);">
+      {% if loop.first %}<span style="position:absolute; bottom:4px; left:4px; background:rgba(0,0,0,.6); color:#fff; font-size:10px; padding:1px 6px; border-radius:4px;">썸네일</span>{% endif %}
+      {% if not ro %}
+      <button type="button" class="photo-remove" data-idx="{{ loop.index0 }}" title="삭제" style="position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; background:#e74c3c; color:#fff; border:none; cursor:pointer; font-size:14px; line-height:22px; text-align:center; padding:0;">×</button>
+      <input type="hidden" name="remove_photo_{{ loop.index0 }}" value="">
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% if not ro %}
+  <div style="display:flex; align-items:center; gap:10px;">
+    <input type="file" name="photos[]" accept=".png,.jpg,.jpeg,.gif,.webp" multiple id="photo-upload"
+           style="flex:1;">
+    <span class="muted" id="photo-count" style="font-size:13px; white-space:nowrap;">{{ photos|length }}/5</span>
+  </div>
+  {% endif %}
+
+  {% if not ro %}
+  <div class="row" style="margin-top: 20px;">
+    <button type="submit" class="btn">등록하기</button>
+    <a class="btn secondary" href="{{ url_for('admin_index') }}">취소</a>
+  </div>
+  {% endif %}
+</form>
+
+{% if meetup %}
+<div class="card" style="margin-top: 24px;">
+  <h2>신청자 ({{ applied }} / {{ meetup.capacity }}명)</h2>
+  {% if apps %}
+  <table style="white-space: nowrap;">
+    <tr><th>#</th><th>이름</th><th>전화번호</th><th>신청 시각</th><th></th></tr>
+    {% for a in apps %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td>{{ a.name }}</td>
+      <td>{{ a.phone }}</td>
+      <td>{{ a.created_at }}</td>
+      <td>
+        <form method="post" action="{{ url_for('admin_delete_application', application_id=a.id) }}" style="display:inline;" onsubmit="return confirm('이 신청자를 삭제할까요?');">
+          <button type="submit" class="btn danger small">삭제</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">아직 신청자가 없습니다.</p>
+  {% endif %}
+</div>
+
+<div class="row" style="gap:8px; margin-top:24px;">
+  {% if recruit_closed %}
+  <form method="post" action="{{ url_for('admin_toggle_recruit', meetup_id=meetup.id) }}">
+    <button type="submit" class="btn secondary">모집 재개</button>
+  </form>
+  {% else %}
+  <form method="post" action="{{ url_for('admin_toggle_recruit', meetup_id=meetup.id) }}" onsubmit="return confirm('모집을 중단하시겠습니까? 중단된 모임에는 새로운 신청이 접수되지 않습니다.');">
+    <button type="submit" class="btn secondary">모집 중단</button>
+  </form>
+  {% endif %}
+  <form method="post" action="{{ url_for('admin_delete_meetup', meetup_id=meetup.id) }}" onsubmit="return confirm('정말 이 모임을 삭제할까요? 되돌릴 수 없습니다.');">
+    <button type="submit" class="btn danger">모임 삭제</button>
+  </form>
+</div>
+{% endif %}
+
+<script>
+(function() {
+  var searchInput = document.getElementById('cafe-search');
+  var resultsDiv = document.getElementById('cafe-results');
+  var placeInput = document.getElementById('place-input');
+  var timer = null;
+
+  function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+
+  function searchCafes() {
+    var q = searchInput.value.trim();
+    if (q.length < 2) { resultsDiv.innerHTML = ''; return; }
+    resultsDiv.innerHTML = '<span class="muted">검색 중...</span>';
+    fetch('/api/cafes?q=' + encodeURIComponent(q))
+      .then(function(r) { return r.json(); })
+      .then(function(list) {
+        if (!list.length) {
+          resultsDiv.innerHTML = '<span class="muted">매칭되는 장소가 없습니다.</span>';
+          return;
+        }
+        var html = '<table><tbody>';
+        for (var i = 0; i < list.length; i++) {
+          var c = list[i];
+          var addr = c.road_address ? c.road_address.replace(/^서울특별시\s*/, '') : '';
+          html += '<tr style="cursor:pointer;" data-name="' + escapeHtml(c.name) + '" data-addr="' + escapeHtml(addr) + '">'
+                + '<td><b>' + escapeHtml(c.name) + '</b></td>'
+                + '<td class="muted">' + escapeHtml(addr) + '</td></tr>';
+        }
+        html += '</tbody></table>';
+        resultsDiv.innerHTML = html;
+        var rows = resultsDiv.querySelectorAll('tr[data-name]');
+        for (var j = 0; j < rows.length; j++) {
+          rows[j].addEventListener('click', function() {
+            var name = this.getAttribute('data-name');
+            var addr = this.getAttribute('data-addr');
+            placeInput.value = name + (addr ? ' (' + addr + ')' : '');
+            searchInput.value = name;
+            resultsDiv.innerHTML = '<span class="muted" style="color:var(--ok);">✓ ' + escapeHtml(name) + ' 을(를) 장소로 선택했습니다.</span>';
+          });
+        }
+      })
+      .catch(function() {
+        resultsDiv.innerHTML = '<span class="muted">검색에 실패했습니다.</span>';
+      });
+  }
+
+  searchInput.addEventListener('input', function() {
+    clearTimeout(timer);
+    timer = setTimeout(searchCafes, 300);
+  });
+  searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); clearTimeout(timer); searchCafes(); }
+  });
+})();
+
+// 사진 삭제 버튼
+document.querySelectorAll('.photo-remove').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var idx = this.getAttribute('data-idx');
+    var item = this.closest('.photo-item');
+    if (!confirm('이 사진을 삭제할까요?')) return;
+    item.style.display = 'none';
+    // hidden input 값 설정 (서버에서 해당 인덱스 삭제)
+    var hidden = document.querySelector('input[name="remove_photo_' + idx + '"]');
+    if (hidden) hidden.value = idx;
+    updatePhotoCount();
+  });
+});
+
+// 파일 선택 시 즉시 미리보기 + DataURL로 서버 전송
+var photoUpload = document.getElementById('photo-upload');
+if (photoUpload) {
+  photoUpload.addEventListener('change', function() {
+    var files = Array.from(this.files);
+    var list = document.getElementById('photo-list');
+    var visible = list.querySelectorAll('.photo-item:not([style*="display: none"])');
+    var remaining = 5 - visible.length;
+
+    files.forEach(function(file) {
+      if (remaining <= 0) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        // hidden input에 DataURL 저장 (서버에서 이미지로 변환)
+        var hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'photo_data[]';
+        hidden.value = e.target.result;
+        hidden.dataset.filename = file.name;
+        list.appendChild(hidden);
+
+        // 미리보기 표시
+        var div = document.createElement('div');
+        div.className = 'photo-item preview';
+        div.style.cssText = 'position:relative; width:100px; height:100px;';
+        div.innerHTML = '<img src="' + e.target.result + '" alt="새 사진" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border:1px solid var(--line);">' +
+          '<button type="button" class="photo-remove-preview" title="삭제" style="position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; background:#e74c3c; color:#fff; border:none; cursor:pointer; font-size:14px; line-height:22px; text-align:center; padding:0;">×</button>';
+        div.querySelector('.photo-remove-preview').addEventListener('click', function() {
+          div.remove();
+          hidden.remove();
+          updatePhotoCount();
+        });
+        list.appendChild(div);
+        updatePhotoCount();
+      };
+      reader.readAsDataURL(file);
+      remaining--;
+    });
+    // 입력 초기화 (같은 파일 다시 선택 가능 — DataURL은 이미 hidden input에 저장됨)
+    this.value = '';
+  });
+}
+
+function updatePhotoCount() {
+  var visible = document.querySelectorAll('#photo-list .photo-item:not([style*="display: none"])');
+  var counter = document.getElementById('photo-count');
+  if (counter) counter.textContent = visible.length + '/5';
+}
+</script>
+{% endblock %}

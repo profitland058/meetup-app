@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}신청 현황 - 호스트{% endblock %}
+{% block content %}
+<h1>📋 {{ meetup.title }} — 신청 현황</h1>
+<div class="card">
+  <p><strong>날짜:</strong> {{ meetup.start_at[:16].replace('T', ' ') }}</p>
+  <p><strong>장소:</strong> {{ meetup.place }}</p>
+  <p><strong>정원:</strong> {{ applied }} / {{ meetup.capacity }}명 {% if ended %}<span class="tag ended">종료됨</span>{% endif %}</p>
+  <a href="{{ url_for('host_index') }}" class="btn secondary small" style="margin-bottom:12px;">← 내 모임 목록으로</a>
+  {% if apps %}
+  <table>
+    <tr><th>#</th><th>이름</th><th>전화번호</th><th>가입 시간</th><th>삭제</th></tr>
+    {% for a in apps %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td>{{ a.name }}</td>
+      <td>{{ a.phone }}</td>
+      <td>{{ a.created_at }}</td>
+      <td>
+        <form method="post" action="{{ url_for('host_delete_app', application_id=a.id) }}" onsubmit="return confirm('{{ a.name }}님을 삭제할까요?');">
+          <button type="submit" class="small-btn danger">삭제</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">아직 신청자가 없습니다.</p>
+  {% endif %}
+</div>
+{% endblock %}

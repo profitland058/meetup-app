@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}내 모임 관리 - 호스트{% endblock %}
+{% block content %}
+<h1>🎪 내 모임 관리</h1>
+<div class="card">
+  <p class="muted">{{ current_user().nickname }}님의 모임 목록입니다.</p>
+  <a href="{{ url_for('host_new_meetup') }}" class="btn primary" style="margin-bottom:16px;">+ 새 모임 만들기</a>
+  {% if meetups %}
+  <table>
+    <tr><th>제목</th><th>날짜/시간</th><th>장소</th><th>정원</th><th>신청</th><th>상태</th><th>관리</th></tr>
+    {% for m in meetups %}
+    <tr>
+      <td class="cell-ellipsis" title="{{ m.title }}">{{ m.title }}</td>
+      <td style="white-space:nowrap;">{{ m.start_at[:16].replace('T', ' ') }}</td>
+      <td class="cell-ellipsis" title="{{ m.place }}">{{ m.place }}</td>
+      <td style="text-align:center; white-space:nowrap;">{{ m.capacity }}명</td>
+      <td style="text-align:center; white-space:nowrap;">{{ m.applied }}명</td>
+      <td style="white-space:nowrap;">
+        {% if m.is_ended %}<span class="tag ended">종료</span>
+        {% elif m.recruit_closed %}<span class="tag closed">모집 종료</span>
+        {% elif m.full %}<span class="tag full">마감</span>
+        {% else %}<span class="tag open">모집중</span>{% endif %}
+      </td>
+      <td style="white-space:nowrap; text-align:center;"><a href="{{ url_for('host_edit_meetup', meetup_id=m.id) }}" class="btn small secondary">수정</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">아직 만든 모임이 없습니다. "새 모임 만들기"를 눌러 첫 모임을 등록해 보세요.</p>
+  {% endif %}
+</div>
+{% endblock %}

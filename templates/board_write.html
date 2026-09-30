@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}글쓰기 - 공지{% endblock %}
+{% block content %}
+<h1>✍️ 글쓰기</h1>
+<div class="card">
+  <form method="post">
+    <div>
+      <label>제목 *</label>
+      <input type="text" name="title" required placeholder="게시글 제목">
+    </div>
+    <div style="margin-top:12px;">
+      <label>내용 *</label>
+      <textarea name="content" rows="8" required placeholder="본문을 입력해 주세요."></textarea>
+    </div>
+    <div style="margin-top:16px; display:flex; gap:8px;">
+      <button type="submit" class="btn primary">등록하기</button>
+      <a href="{{ url_for('board_index') }}" class="btn secondary">취소</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}관리자 - 결제 관리{% endblock %}
+{% block content %}
+<h1>결제 관리</h1>
+<div class="card">
+  <div style="display:flex; gap:8px; margin-bottom:20px;">
+    <a href="{{ url_for('admin_index') }}" class="btn secondary">모임 관리</a>
+    <a href="{{ url_for('admin_users') }}" class="btn secondary">회원 관리</a>
+    <a href="{{ url_for('admin_payments') }}" class="btn primary">결제 관리</a>
+    <a href="{{ url_for('admin_board') }}" class="btn secondary">공지 관리</a>
+  </div>
+
+  {% if payments %}
+  <div style="overflow-x:auto;">
+  <table style="width:100%; font-size:14px;">
+    <tr><th>ID</th><th>이름</th><th>닉네임</th><th>전화번호</th><th>금액</th><th>신청일</th><th>상태</th><th>처리</th></tr>
+    {% for p in payments %}
+    <tr style="{% if p.status == 'pending' %}background:#fffbeb;{% endif %}">
+      <td>{{ p.id }}</td>
+      <td>{{ p.name }}</td>
+      <td>{{ p.nickname }}</td>
+      <td>{{ p.phone }}</td>
+      <td style="font-weight:600;">{{ "{:,}".format(p.amount) }}원</td>
+      <td style="white-space:nowrap;">{{ p.created_at[:16] }}</td>
+      <td>
+        {% if p.status == 'pending' %}
+          <span class="badge" style="background:#fef3c7; color:#d97706;">대기</span>
+        {% elif p.status == 'approved' %}
+          <span class="badge" style="background:#dcfce7; color:#16a34a;">승인</span>
+        {% else %}
+          <span class="badge" style="background:#fee2e2; color:#dc2626;">거절</span>
+        {% endif %}
+      </td>
+      <td style="white-space:nowrap;">
+        {% if p.status == 'pending' %}
+        <form method="post" action="{{ url_for('admin_decide_payment', pay_id=p.id) }}" style="display:inline;" onsubmit="return confirm('{{ p.nickname }}님의 {{ p.amount }}원 결제를 승인하시겠습니까? 코인이 충전됩니다.');">
+          <input type="hidden" name="_action" value="approve">
+          <button type="submit" class="btn primary" style="padding:4px 10px; font-size:12px;">승인</button>
+        </form>
+        <form method="post" action="{{ url_for('admin_decide_payment', pay_id=p.id) }}" style="display:inline;" onsubmit="return confirm('{{ p.nickname }}님의 결제를 거절하시겠습니까?');">
+          <input type="hidden" name="_action" value="reject">
+          <button type="submit" class="btn secondary" style="padding:4px 10px; font-size:12px;">거절</button>
+        </form>
+        {% else %}
+        <span class="muted">{{ p.decided_at[:16] if p.decided_at else '' }}</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">결제 내역이 없습니다.</p>
+  {% endif %}
+</div>
+{% endblock %}

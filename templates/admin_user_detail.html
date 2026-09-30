@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}회원 상세 - {{ user.name }}{% endblock %}
+{% block content %}
+<div class="container">
+  <div style="display:flex; gap:8px; margin-bottom:20px;">
+    <a href="{{ url_for('admin_index') }}" class="btn secondary">모임 관리</a>
+    <a href="{{ url_for('admin_users') }}" class="btn primary">회원 관리</a>
+    <a href="{{ url_for('admin_payments') }}" class="btn secondary">결제 관리</a>
+    <a href="{{ url_for('admin_board') }}" class="btn secondary">공지 관리</a>
+  </div>
+
+  <a href="{{ url_for('admin_users') }}" class="muted">← 회원 목록으로</a>
+
+  <!-- 가입 정보 -->
+  <div class="card" style="margin-top:16px;">
+    <h2 style="font-size:18px; margin-bottom:16px;">👤 가입 정보</h2>
+    <table>
+      <tr><th style="width:120px;">ID</th><td>{{ user.id }}</td></tr>
+      <tr><th>이름</th><td>{{ user.name }}</td></tr>
+      <tr><th>닉네임</th><td>{{ user.nickname }}</td></tr>
+      <tr><th>전화번호</th><td>{{ user.phone }}</td></tr>
+      <tr><th>역할</th>
+        <td>
+          {% if user.role == 'admin' %}<span class="tag ended">관리자</span>
+          {% elif user.role == 'host' %}<span class="tag full">호스트</span>
+          {% else %}<span class="tag open">일반</span>{% endif %}
+        </td>
+      </tr>
+      <tr><th>가입일</th><td>{{ user.created_at[:16] }}</td></tr>
+      <tr><th>코인 잔액</th><td>{{ coin_balance }} 코인</td></tr>
+    </table>
+  </div>
+
+  <!-- 가입된 모임 -->
+  <div class="card" style="margin-top:16px;">
+    <h2 style="font-size:18px; margin-bottom:12px;">📋 가입된 모임 ({{ joined_meetups|length }}개)</h2>
+    {% if joined_meetups %}
+    <table>
+      <tr><th>모임</th><th>날짜/시간</th><th>장소</th><th>상태</th></tr>
+      {% for m in joined_meetups %}
+      <tr>
+        <td class="cell-ellipsis" title="{{ m.title }}">{{ m.title }}</td>
+        <td style="white-space:nowrap;">{{ m.start_at.replace('T', ' ') }}</td>
+        <td class="cell-ellipsis" title="{{ m.place }}">{{ m.place }}</td>
+        <td style="white-space:nowrap;">
+          {% if m.cancelled_at %}
+            <span class="tag ended">취소됨</span>
+          {% else %}
+            <span class="tag open">신청 중</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p style="color:#999; text-align:center; padding:16px;">가입된 모임이 없습니다.</p>
+    {% endif %}
+  </div>
+
+  <!-- 주최한 모임 -->
+  {% if hosted_meetups %}
+  <div class="card" style="margin-top:16px;">
+    <h2 style="font-size:18px; margin-bottom:12px;">🎯 주최한 모임 ({{ hosted_meetups|length }}개)</h2>
+    <table>
+      <tr><th>모임</th><th>날짜/시간</th><th>장소</th><th>정원</th><th>신청</th></tr>
+      {% for m in hosted_meetups %}
+      <tr>
+        <td class="cell-ellipsis" title="{{ m.title }}">{{ m.title }}</td>
+        <td style="white-space:nowrap;">{{ m.start_at.replace('T', ' ') }}</td>
+        <td class="cell-ellipsis" title="{{ m.place }}">{{ m.place }}</td>
+        <td style="text-align:center;">{{ m.capacity }}명</td>
+        <td style="text-align:center;">{{ m.applied }}명</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- 결제 정보 -->
+  <div class="card" style="margin-top:16px;">
+    <h2 style="font-size:18px; margin-bottom:12px;">💳 결제 정보 ({{ payments|length }}건)</h2>
+    {% if payments %}
+    <table>
+      <tr><th>#</th><th>금액</th><th>상태</th><th>신청일</th><th>결정일</th></tr>
+      {% for p in payments %}
+      <tr>
+        <td style="text-align:center; color:#9ca3af;">{{ loop.index }}</td>
+        <td>{{ "{:,}".format(p.amount) }}원</td>
+        <td style="white-space:nowrap;">
+          {% if p.status == 'approved' %}<span class="tag open">승인됨</span>
+          {% elif p.status == 'rejected' %}<span class="tag ended">거절됨</span>
+          {% else %}<span class="tag closed">대기중</span>{% endif %}
+        </td>
+        <td style="white-space:nowrap;">{{ p.created_at[:16] }}</td>
+        <td style="white-space:nowrap;">{{ p.decided_at[:16] if p.decided_at else '-' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p style="color:#999; text-align:center; padding:16px;">결제 내역이 없습니다.</p>
+    {% endif %}
+  </div>
+
+  <!-- 회원 탈퇴 -->
+  {% if user.role != 'admin' %}
+  <div class="card" style="margin-top:24px; border-left:4px solid var(--bad); background:linear-gradient(to right, #fff5f5, #fff);">
+    <h2 style="color:var(--bad); display:flex; align-items:center; gap:8px; font-size:18px;">
+      <span style="font-size:1.2rem;">⚠️</span> 회원 탈퇴
+    </h2>
+    <p class="muted" style="margin-bottom:16px;">
+      {{ user.name }}님의 계정을 삭제합니다.<br>
+      이 작업은 <strong style="color:var(--bad);">되돌릴 수 없습니다.</strong>
+    </p>
+    <form method="post" action="{{ url_for('admin_delete_user', user_id=user.id) }}"
+          onsubmit="return confirm('{{ user.name }}님을 탈퇴시킬까요? 이 작업은 되돌릴 수 없습니다.');">
+      <button type="submit" class="btn danger" style="padding:10px 24px; font-size:14px;">
+        계정 탈퇴시키기
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

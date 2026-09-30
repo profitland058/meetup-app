@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}관리자 - 공지 관리{% endblock %}
+{% block content %}
+<h1>공지 관리</h1>
+<div class="card">
+  <div style="display:flex; gap:8px; margin-bottom:20px;">
+    <a href="{{ url_for('admin_index') }}" class="btn secondary">모임 관리</a>
+    <a href="{{ url_for('admin_users') }}" class="btn secondary">회원 관리</a>
+    <a href="{{ url_for('admin_payments') }}" class="btn secondary">결제 관리</a>
+    <a href="{{ url_for('admin_board') }}" class="btn primary">공지 관리</a>
+  </div>
+
+  <div style="margin-bottom:16px;">
+    <a href="{{ url_for('admin_write_post') }}" class="btn primary">+ 공지 작성</a>
+  </div>
+  {% if posts %}
+  <table>
+    <tr><th>#</th><th>제목</th><th>작성자</th><th>작성일</th><th>관리</th></tr>
+    {% for p in posts %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td class="cell-ellipsis" title="{{ p.title }}">{{ p.title }}</td>
+      <td>{{ p.author_name }}</td>
+      <td>{{ p.created_at[:16] }}</td>
+      <td style="white-space:nowrap;">
+        <div style="display:flex; gap:6px;">
+          <a href="{{ url_for('admin_edit_post', post_id=p.id) }}" class="btn small secondary" style="height:30px; display:inline-flex; align-items:center; justify-content:center;">수정</a>
+          <form method="post" action="{{ url_for('admin_delete_post', post_id=p.id) }}" onsubmit="return confirm('이 공지를 삭제할까요?');" style="margin:0;">
+            <button type="submit" class="btn small danger" style="height:30px; display:inline-flex; align-items:center; justify-content:center;">삭제</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">공지가 없습니다.</p>
+  {% endif %}
+</div>
+{% endblock %}

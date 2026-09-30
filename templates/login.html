@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}로그인 - 모임 신청{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>로그인</h2>
+  <p class="muted">가입 시 사용한 전화번호로 로그인해 주세요.</p>
+  <form method="post">
+    <label>전화번호</label>
+    <input type="tel" name="phone" required pattern="{{ PHONE_PATTERN }}" title="010-0000-0000 형식" placeholder="010-0000-0000">
+    <button type="submit" class="btn primary" style="margin-top:16px;">로그인</button>
+  </form>
+  <p style="margin-top:16px;" class="muted">아직 계정이 없으신가요? <a href="{{ url_for('join') }}">회원 가입</a></p>
+</div>
+{% endblock %}

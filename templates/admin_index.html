@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}관리자 - 모임 관리{% endblock %}
+{% block content %}
+<h1>전체 모임 관리</h1>
+<div class="card">
+  <div style="display:flex; gap:8px; margin-bottom:20px;">
+    <a href="{{ url_for('admin_index') }}" class="btn primary">모임 관리</a>
+    <a href="{{ url_for('admin_users') }}" class="btn secondary">회원 관리</a>
+    <a href="{{ url_for('admin_payments') }}" class="btn secondary" style="{% if pending_payments %}border-color:#d97706; color:#d97706;{% endif %}">
+      결제 관리{% if pending_payments %} ({{ pending_payments }}건 대기){% endif %}
+    </a>
+    <a href="{{ url_for('admin_board') }}" class="btn secondary">공지 관리</a>
+    <a href="{{ url_for('admin_change_password') }}" class="btn secondary" style="margin-left:auto;">🔑 비밀번호 변경</a>
+  </div>
+
+  <div style="margin-bottom:16px;">
+    <a href="{{ url_for('admin_new') }}" class="btn primary">+ 새 모임 등록</a>
+  </div>
+
+  {% if meetups %}
+  <div style="overflow-x: auto;">
+  <table class="admin-table">
+    <colgroup>
+      <col class="col-title"><col class="col-host"><col class="col-date"><col class="col-place">
+      <col class="col-cap"><col class="col-app"><col class="col-status"><col class="col-manage">
+    </colgroup>
+    <tr><th>제목</th><th>호스트</th><th>날짜/시간</th><th>장소</th><th>정원</th><th>신청</th><th>상태</th><th>관리</th></tr>
+    {% for m in meetups %}
+    <tr>
+      <td class="cell-ellipsis" title="{{ m.title }}">{{ m.title }}</td>
+      <td class="cell-ellipsis" title="{{ m.host_nickname }}">{{ m.host_nickname }}</td>
+      <td style="white-space:nowrap;">{{ m.start_at[:16].replace('T', ' ') }}</td>
+      <td class="cell-ellipsis" title="{{ m.place }}">{{ m.place }}</td>
+      <td style="white-space:nowrap;">{{ m.capacity }}명</td>
+      <td style="white-space:nowrap;">{{ m.applied }}명</td>
+      <td style="white-space:nowrap; text-align:center;">{% if m.is_ended %}<span class="badge gray">종료</span>{% elif m.full %}<span class="badge bad">마감</span>{% else %}<span class="badge ok">모집중</span>{% endif %}</td>
+      <td style="white-space:nowrap; text-align:center;"><a href="{{ url_for('admin_edit_meetup', meetup_id=m.id) }}" class="btn small secondary">수정</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">등록된 모임이 없습니다.</p>
+  {% endif %}
+</div>
+{% endblock %}

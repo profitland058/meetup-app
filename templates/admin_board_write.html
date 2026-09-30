@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% set is_edit = post is defined and post is mapping %}
+{% block title %}{% if is_edit %}관리자 - 공지 수정{% else %}관리자 - 공지 작성{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if is_edit %}공지 수정{% else %}공지 작성{% endif %}</h1>
+<div class="card">
+  <div style="margin-bottom:16px;">
+    <a href="{{ url_for('admin_board') }}" class="btn secondary">← 목록으로</a>
+  </div>
+  <form method="post">
+    <label>제목</label>
+    <input type="text" name="title" value="{{ post.title if is_edit else '' }}" required maxlength="100">
+    <label>내용</label>
+    <textarea name="content" required rows="6">{{ post.content if is_edit else '' }}</textarea>
+    <button type="submit" class="btn primary" style="margin-top:12px;">{% if is_edit %}수정하기{% else %}등록{% endif %}</button>
+  </form>
+</div>
+{% endblock %}
