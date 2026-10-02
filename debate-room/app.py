@@ -1276,13 +1276,20 @@ def handle_get_messages(data):
 
 # ==================== 실행 ====================
 
+def _init_background_tasks():
+    """백그라운드 태스크 초기화 (서버 시작 시 한 번만 호출)."""
+    if not hasattr(app, '_background_tasks_started'):
+        app._background_tasks_started = True
+        socketio.start_background_task(_deadline_scheduler)
+
+# Gunicorn 또는 다른 WSGI 서버가 로드할 때
+@app.before_request
+def _ensure_background_tasks():
+    _init_background_tasks()
+
 if __name__ == "__main__":
-    # 백그라운드에서 매초 마감 시간 체크 → 종료 즉시 room_closed 이벤트 전송
-    # flask-socketio 5.x + allow_unsafe_werkzeug 조합에서는 외부 threading.Thread
-    # 에서 호출한 socketio.emit이 websocket 클라이언트에 전달되지 않는다.
-    # start_background_task는 서버 내부 메시지 큐를 거치므로 정상 동작한다.
-    socketio.start_background_task(_deadline_scheduler)
+    # 직접 실행 시 (개발용)
+    _init_background_tasks()
     port = int(os.environ.get("PORT", 5001))
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
-    # Render 호환: 기본 async_mode 사용, 포트는 환경변수에서 읽음
     socketio.run(app, host="0.0.0.0", port=port, debug=debug, allow_unsafe_werkzeug=True)
