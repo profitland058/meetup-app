@@ -1267,5 +1267,5 @@ if __name__ == "__main__":
     socketio.start_background_task(_deadline_scheduler)
     port = int(os.environ.get("PORT", 5001))
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
-    # async_mode='threading' 명시: Werkzeug + threading 조합으로 동시 접속 지원
-    socketio.run(app, host="0.0.0.0", port=port, debug=debug, allow_unsafe_werkzeug=True, async_mode='threading')
+    # Render 호환: 기본 async_mode 사용, 포트는 환경변수에서 읽음
+    socketio.run(app, host="0.0.0.0", port=port, debug=debug, allow_unsafe_werkzeug=True)
