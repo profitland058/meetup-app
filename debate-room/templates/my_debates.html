@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}나의 토론 - 토론방{% endblock %}
+
+{% block extra_styles %}
+        .room-card { background: #1e293b; border-radius: 12px; padding: 1.3rem 1.5rem; margin-bottom: 1.2rem; border: 1px solid #334155; }
+        .room-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+        .room-title { font-size: 1.25rem; font-weight: bold; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .status-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+        .status-open { background: rgba(34,197,94,0.2); color: #4ade80; }
+        .status-closed { background: rgba(100,116,139,0.2); color: #94a3b8; }
+        .role-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+        .role-debater-red { background: #7f1d1d; color: #fca5a5; }
+        .role-debater-blue { background: #1e3a5f; color: #93c5fd; }
+        .role-observer { background: #064e3b; color: #6ee7b7; }
+        .room-opinions { display: flex; align-items: center; gap: 0.8rem; margin-top: 1rem; }
+        .opinion { padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+        .opinion-red { background: rgba(239,68,68,0.1); border-left: 3px solid #ef4444; }
+        .opinion-blue { background: rgba(59,130,246,0.1); border-left: 3px solid #3b82f6; }
+        .vs-label { color: #64748b; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
+        .room-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; flex-wrap: wrap; gap: 0.6rem; }
+        .participants-info { color: #94a3b8; font-size: 0.9rem; }
+        .empty-state { text-align: center; padding: 3rem; color: #64748b; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .section-header h2 { font-size: 1.2rem; color: #cbd5e1; }
+        @media (max-width: 700px) {
+            .room-opinions { flex-wrap: wrap; }
+            .opinion { flex-basis: calc(50% - 0.4rem); white-space: normal; }
+            .vs-label { display: none; }
+            .room-header { flex-direction: column; gap: 0.4rem; }
+        }
+{% endblock %}
+
+{% block content %}
+        <div class="section-header">
+            <h2>📋 나의 토론</h2>
+            <span style="color:#94a3b8;font-size:0.9rem;">{{ nickname }} 님이 참여·관전했던 토론</span>
+        </div>
+
+        {% for room in rooms %}
+        <div class="room-card">
+            <div class="room-header">
+                <div class="room-title">{{ room.title }}</div>
+                {% if room.status == 'open' %}
+                    <span class="status-badge status-open">● 진행중</span>
+                {% else %}
+                    <span class="status-badge status-closed">■ 종료</span>
+                {% endif %}
+                {% if room.my_role == 'debater' and room.my_side == 'red' %}
+                    <span class="role-badge role-debater-red">🔴 토론자</span>
+                {% elif room.my_role == 'debater' and room.my_side == 'blue' %}
+                    <span class="role-badge role-debater-blue">🔵 토론자</span>
+                {% else %}
+                    <span class="role-badge role-observer">👁️ 관전자</span>
+                {% endif %}
+            </div>
+            <div class="room-opinions">
+                <div class="opinion opinion-red">{{ room.red_opinion }}</div>
+                <div class="opinion opinion-blue">{{ room.blue_opinion }}</div>
+                <a href="{{ url_for('room_detail', room_id=room.id) }}?source=my" class="btn btn-primary" style="padding:0.4rem 1rem; flex-shrink:0;">{% if room.status == 'open' %}입장{% else %}기록 보기{% endif %}</a>
+            </div>
+            <div class="room-meta">
+                <span class="participants-info">👥 관전 {{ room.observer_count }}명 | 🔴 {{ room.red_debatters|length }}명 vs 🔵 {{ room.blue_debatters|length }}명</span>
+                <span style="color:#64748b;font-size:0.85rem;">{{ room.duration_minutes }}분 토론</span>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p style="font-size:3rem;margin-bottom:1rem;">📭</p>
+            <p>아직 참여한 토론이 없습니다.</p>
+            <a href="/join" class="btn btn-primary" style="margin-top:1rem;">토론 만들기</a>
+        </div>
+        {% endfor %}
+{% endblock %}

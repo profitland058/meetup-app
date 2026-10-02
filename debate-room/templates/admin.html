@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 - 토론방</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Pretendard Variable', Pretendard, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 2rem; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+        .alert-error { background: rgba(239,68,68,0.15); border: 1px solid #ef4444; color: #fca5a5; padding: 0.8rem; border-radius: 8px; margin-bottom: 1rem; }
+        .alert-success { background: rgba(34,197,94,0.15); border: 1px solid #22c55e; color: #86efac; padding: 0.8rem; border-radius: 8px; margin-bottom: 1rem; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 1.2rem; margin-bottom: 1.2rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 0.8rem; color: #93c5fd; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 0.5rem 0.6rem; text-align: left; border-bottom: 1px solid #334155; }
+        th { color: #64748b; font-weight: 600; }
+        .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .badge-red { background: rgba(239,68,68,0.2); color: #fca5a5; }
+        .badge-blue { background: rgba(59,130,246,0.2); color: #93c5fd; }
+        .badge-gray { background: rgba(100,116,139,0.2); color: #94a3b8; }
+        .btn { padding: 0.4rem 0.8rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
+        .btn-green { background: #22c55e; color: white; }
+        .btn-green:hover { background: #16a34a; }
+        .btn-yellow { background: #eab308; color: #1e293b; }
+        .btn-yellow:hover { background: #ca8a04; }
+        .btn-red { background: #ef4444; color: white; }
+        .btn-red:hover { background: #dc2626; }
+        .btn-blue { background: #3b82f6; color: white; }
+        .btn-blue:hover { background: #2563eb; }
+        form.inline { display: inline; }
+        .empty { color: #64748b; font-size: 0.85rem; padding: 0.5rem 0; }
+        a.back { color: #64748b; font-size: 0.85rem; text-decoration: none; display: inline-block; margin-bottom: 1rem; }
+        a.back:hover { color: #93c5fd; }
+        .login-box { max-width: 360px; margin: 3rem auto; }
+        .login-box input { width: 100%; padding: 0.7rem; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #e2e8f0; margin-bottom: 0.8rem; }
+        .pwd-form input { width: 100%; padding: 0.6rem; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #e2e8f0; margin-bottom: 0.6rem; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .top-bar h1 { margin-bottom: 0; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="/" class="back">← 홈으로</a>
+
+    {% if not session.get('admin_authed') %}
+    <!-- 미인증: 로그인 폼만 표시 -->
+    <div class="login-box card">
+        <h2>🔒 관리자 인증</h2>
+        {% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+        {% if success %}<div class="alert-success">{{ success }}</div>{% endif %}
+        <form method="POST">
+            <input type="hidden" name="action" value="authenticate">
+            <input type="password" name="password" placeholder="관리자 비밀번호" required autofocus>
+            <button type="submit" class="btn btn-blue" style="width:100%;">입장</button>
+        </form>
+    </div>
+    {% else %}
+    <!-- 인증 완료: 전체 내용 -->
+    <div class="top-bar">
+        <h1>⚙️ 관리자</h1>
+        <form method="POST" style="display:inline;">
+            <input type="hidden" name="action" value="logout_admin">
+            <button type="submit" class="btn btn-red" style="font-size:0.75rem;padding:0.3rem 0.7rem;">로그아웃</button>
+        </form>
+    </div>
+
+    {% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+    {% if success %}<div class="alert-success">{{ success }}</div>{% endif %}
+
+    <!-- 정지된 사용자 -->
+    <div class="card">
+        <h2>🚫 정지된 사용자 ({{ suspended_users|length }})</h2>
+        {% if suspended_users %}
+        <table>
+            <tr><th>닉네임</th><th>정지 시각</th><th></th></tr>
+            {% for u in suspended_users %}
+            <tr>
+                <td>{{ u['nickname'] }}</td>
+                <td>{{ u['suspended_at'] or '-' }}</td>
+                <td>
+                    <form class="inline" method="POST">
+                        <input type="hidden" name="action" value="unsuspend">
+                        <input type="hidden" name="nickname" value="{{ u['nickname'] }}">
+                        <button class="btn btn-green">해제</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <p class="empty">정지된 사용자가 없습니다.</p>
+        {% endif %}
+    </div>
+
+    <!-- 대기 중인 신고 -->
+    <div class="card">
+        <h2>📋 대기 중인 신고 ({{ pending_reports|length }})</h2>
+        {% if pending_reports %}
+        <table>
+            <tr><th>#</th><th>방</th><th>신고한 사람</th><th>대상</th><th>사유</th><th>시각</th><th></th></tr>
+            {% for r in pending_reports %}
+            <tr>
+                <td>{{ r['id'] }}</td>
+                <td>{{ r['room_id'] }}</td>
+                <td>{{ r['reporter_nickname'] }}</td>
+                <td>{{ r['reported_nickname'] }}</td>
+                <td>{{ r['reason'] or '-' }}</td>
+                <td>{{ (r['created_at'] or '')[:16] }}</td>
+                <td>
+                    <form class="inline" method="POST">
+                        <input type="hidden" name="action" value="resolve_report">
+                        <input type="hidden" name="report_id" value="{{ r['id'] }}">
+                        <button class="btn btn-yellow">처리</button>
+                    </form>
+                    <form class="inline" method="POST">
+                        <input type="hidden" name="action" value="delete_report">
+                        <input type="hidden" name="report_id" value="{{ r['id'] }}">
+                        <button class="btn btn-red">삭제</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <p class="empty">대기 중인 신고가 없습니다.</p>
+        {% endif %}
+    </div>
+
+    <!-- 차단 단어 목록 -->
+    <div class="card">
+        <h2>🔤 차단 단어 (총 {{ kw_total }}개)</h2>
+
+        <!-- 단어 추가 (표 위) -->
+        <form method="POST" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;align-items:center;">
+            <input type="hidden" name="action" value="add_keyword">
+            <input type="text" name="keyword" placeholder="새 단어 입력" required
+                   style="flex:1;min-width:100px;padding:0.5rem;border:1px solid #334155;border-radius:6px;background:#0f172a;color:#e2e8f0;font-size:0.85rem;">
+            <select name="category"
+                    style="padding:0.5rem;border:1px solid #334155;border-radius:6px;background:#0f172a;color:#e2e8f0;font-size:0.85rem;">
+                <option value="profanity">욕설</option>
+                <option value="ad_spam">광고/스팸</option>
+                <option value="offtopic">오프토픽</option>
+            </select>
+            <button type="submit" class="btn btn-green">추가</button>
+        </form>
+
+        <!-- 카테고리 필터 -->
+        <form method="GET" style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.8rem;">
+            <label style="font-size:0.85rem;color:#94a3b8;">필터:</label>
+            <select name="category" onchange="this.form.submit()"
+                    style="padding:0.4rem;border:1px solid #334155;border-radius:6px;background:#0f172a;color:#e2e8f0;font-size:0.85rem;">
+                <option value="" {% if not kw_category %}selected{% endif %}>전체</option>
+                <option value="profanity" {% if kw_category == 'profanity' %}selected{% endif %}>😡 욕설</option>
+                <option value="ad_spam" {% if kw_category == 'ad_spam' %}selected{% endif %}>📢 광고/스팸</option>
+                <option value="offtopic" {% if kw_category == 'offtopic' %}selected{% endif %}>💬 오프토픽</option>
+            </select>
+        </form>
+
+        <!-- 단어 테이블 -->
+        <table>
+            <tr><th>단어</th><th>카테고리</th><th style="width:60px;"></th></tr>
+            {% for k in all_keywords %}
+            <tr>
+                <td>{{ k['keyword'] }}</td>
+                <td>
+                    {% if k['category'] == 'profanity' %}<span class="badge badge-red">욕설</span>
+                    {% elif k['category'] == 'ad_spam' %}<span class="badge badge-blue">광고/스팸</span>
+                    {% else %}<span class="badge badge-gray">오프토픽</span>{% endif %}
+                </td>
+                <td>
+                    <form class="inline" method="POST">
+                        <input type="hidden" name="action" value="delete_keyword">
+                        <input type="hidden" name="keyword_id" value="{{ k['id'] }}">
+                        <button class="btn btn-red" style="padding:0.15rem 0.4rem;font-size:0.75rem;" title="삭제">✕</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not all_keywords %}
+            <tr><td colspan="3" class="empty">표시할 단어가 없습니다.</td></tr>
+            {% endif %}
+        </table>
+
+        <!-- 페이지네이션 -->
+        {% if kw_total_pages > 1 %}
+        <div style="display:flex;justify-content:center;gap:0.3rem;margin-top:1rem;flex-wrap:wrap;">
+            {% if kw_page > 1 %}
+            <a href="/admin?category={{ kw_category }}&page={{ kw_page - 1 }}"
+               style="padding:0.3rem 0.6rem;border:1px solid #334155;border-radius:6px;color:#93c5fd;text-decoration:none;font-size:0.8rem;">‹ 이전</a>
+            {% endif %}
+            {% for p in range(1, kw_total_pages + 1) %}
+            {% if p == kw_page %}
+            <span style="padding:0.3rem 0.6rem;background:#3b82f6;border-radius:6px;color:white;font-size:0.8rem;font-weight:bold;">{{ p }}</span>
+            {% else %}
+            <a href="/admin?category={{ kw_category }}&page={{ p }}"
+               style="padding:0.3rem 0.6rem;border:1px solid #334155;border-radius:6px;color:#94a3b8;text-decoration:none;font-size:0.8rem;">{{ p }}</a>
+            {% endif %}
+            {% endfor %}
+            {% if kw_page < kw_total_pages %}
+            <a href="/admin?category={{ kw_category }}&page={{ kw_page + 1 }}"
+               style="padding:0.3rem 0.6rem;border:1px solid #334155;border-radius:6px;color:#93c5fd;text-decoration:none;font-size:0.8rem;">다음 ›</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 정지 기록 -->
+    <div class="card">
+        <h2>📝 정지 기록 (최신 30건)</h2>
+        {% if suspensions %}
+        <table>
+            <tr><th>닉네임</th><th>방</th><th>메시지</th><th>시각</th></tr>
+            {% for v in suspensions %}
+            <tr>
+                <td>{{ v['nickname'] }}</td>
+                <td>{{ v['room_id'] }}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ v['message'] }}</td>
+                <td>{{ (v['created_at'] or '')[:16] }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <p class="empty">정지 기록이 없습니다.</p>
+        {% endif %}
+    </div>
+
+    <!-- 비밀번호 변경 -->
+    <div class="card">
+        <h2>🔑 비밀번호 변경</h2>
+        <form class="pwd-form" method="POST">
+            <input type="hidden" name="action" value="change_password">
+            <input type="password" name="password" placeholder="현재 비밀번호" required>
+            <input type="password" name="new_password" placeholder="새 비밀번호" required>
+            <input type="password" name="confirm_pwd" placeholder="새 비밀번호 확인" required>
+            <button type="submit" class="btn btn-blue">변경</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>

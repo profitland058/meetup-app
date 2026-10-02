@@ -1,10 +1,10 @@
 services:
   - type: web
-    name: meetup-app
+    name: debate-room
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    buildCommand: pip install -r debate-room/requirements.txt
+    startCommand: cd debate-room && python app.py
     envVars:
       - key: FLASK_DEBUG
         value: "0"

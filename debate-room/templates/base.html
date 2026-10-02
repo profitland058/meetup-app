@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}토론방{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin="anonymous">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Pretendard Variable', Pretendard, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem 1.5rem; }
+        header h1 { font-size: 2.2rem; color: #38bdf8; margin-bottom: 0.3rem; }
+        header p { color: #94a3b8; margin-bottom: 1rem; }
+        .nav-tabs { display: flex; gap: 0.3rem; margin-bottom: 2rem; flex-wrap: wrap; align-items: center; }
+        .nav-tabs a { padding: 0.55rem 1.2rem; border-radius: 8px; text-decoration: none; color: #94a3b8; font-weight: 600; font-size: 0.95rem; transition: all 0.2s; white-space: nowrap; }
+        .nav-tabs a:hover { background: #1e293b; color: #e2e8f0; }
+        .nav-tabs a.active { background: #3b82f6; color: white; }
+        .nav-logout { margin-left: auto; }
+        .btn { display: inline-block; padding: 0.6rem 1.5rem; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; text-decoration: none; text-align: center; white-space: nowrap; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-outline { background: transparent; color: #94a3b8; border: 1px solid #334155; padding: 0.45rem 1rem; font-size: 0.9rem; }
+        .btn-outline:hover { border-color: #f87171; color: #f87171; }
+        {% block extra_styles %}{% endblock %}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🗣️ 토론방</h1>
+            <p>실시간 찬반 토론에 참여하고 투표하세요</p>
+        </header>
+
+        <nav class="nav-tabs">
+            <a href="/" class="{{ 'active' if request.path == '/' else '' }}">홈</a>
+            <a href="/top" class="{{ 'active' if request.path == '/top' else '' }}">Top 10</a>
+            <a href="/my-debates" class="{{ 'active' if request.path == '/my-debates' else '' }}">나의 토론</a>
+            <a href="/my" class="{{ 'active' if request.path == '/my' else '' }}">마이페이지</a>
+            <a href="/admin" class="{{ 'active' if request.path == '/admin' else '' }}">⚙️ 관리자</a>
+            {% if session.get('nickname') %}
+                <a href="/logout" class="btn btn-outline nav-logout">로그아웃</a>
+            {% else %}
+                <a href="/login" class="btn btn-primary nav-logout">로그인</a>
+            {% endif %}
+        </nav>
+
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

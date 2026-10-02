@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if mode == 'register' %}회원가입{% else %}로그인{% endif %} - 토론방</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin="anonymous">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard Variable', Pretendard, 'Segoe UI', sans-serif;
+            background: #0f172a; color: #e2e8f0; min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .auth-card {
+            background: #1e293b; border-radius: 16px; padding: 2.5rem;
+            width: 100%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        }
+        .auth-card h1 { font-size: 1.6rem; text-align: center; margin-bottom: 0.5rem; }
+        .auth-card .sub { text-align: center; color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.5rem; }
+        .field { margin-bottom: 1rem; }
+        .field label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.4rem; }
+        .field input {
+            width: 100%; padding: 0.7rem 0.9rem; border-radius: 8px;
+            border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 1rem;
+        }
+        .field input:focus { outline: none; border-color: #3b82f6; }
+        .btn {
+            width: 100%; padding: 0.8rem; border: none; border-radius: 8px;
+            font-size: 1rem; cursor: pointer; font-weight: 600; margin-top: 0.5rem;
+        }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .switch { text-align: center; margin-top: 1.2rem; font-size: 0.9rem; color: #94a3b8; }
+        .switch a { color: #3b82f6; text-decoration: none; font-weight: 600; }
+        .error {
+            background: rgba(239,68,68,0.15); color: #fca5a5;
+            padding: 0.7rem; border-radius: 8px; font-size: 0.9rem; margin-bottom: 1rem;
+        }
+        .back { display: block; text-align: center; margin-top: 1.5rem; color: #64748b; text-decoration: none; font-size: 0.85rem; }
+        .back:hover { color: #94a3b8; }
+    </style>
+</head>
+<body>
+    <div class="auth-card">
+        {% if mode == 'register' %}
+            <h1>📝 회원가입</h1>
+            <p class="sub">전화번호와 닉네임을 입력해 주세요</p>
+            <form method="POST" action="/register">
+                {% if error %}<div class="error">{{ error }}</div>{% endif %}
+                <div class="field">
+                    <label>전화번호</label>
+                    <input type="tel" name="phone_number" placeholder="예: 01012345678" required autofocus>
+                </div>
+                <div class="field">
+                    <label>닉네임</label>
+                    <input type="text" name="nickname" maxlength="20" placeholder="예: 철수" required>
+                </div>
+                <button type="submit" class="btn btn-primary">회원가입</button>
+            </form>
+            <div class="switch">이미 계정이 있나요? <a href="/login">로그인</a></div>
+        {% else %}
+            <h1>🔐 로그인</h1>
+            <p class="sub">가입한 전화번호만 입력해 주세요</p>
+            <form method="POST" action="/login">
+                {% if error %}<div class="error">{{ error }}</div>{% endif %}
+                <div class="field">
+                    <label>전화번호</label>
+                    <input type="tel" name="phone_number" placeholder="예: 01012345678" required autofocus>
+                </div>
+                <button type="submit" class="btn btn-primary">로그인</button>
+            </form>
+            <div class="switch">계정이 없나요? <a href="/register">회원가입</a></div>
+        {% endif %}
+        <a href="/" class="back">← 방 목록으로 돌아가기</a>
+    </div>
+</body>
+</html>

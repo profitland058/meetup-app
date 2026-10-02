@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>토론방 - 입장/생성</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin="anonymous">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Pretendard Variable', Pretendard, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 2rem; }
+        .container { max-width: 640px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 1.8rem; margin-bottom: 1.5rem; }
+        .card { background: #1e293b; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #94a3b8; }
+        label { display: block; font-size: 0.9rem; color: #94a3b8; margin-bottom: 0.3rem; }
+        input[type="text"], input[type="number"], textarea {
+            width: 100%; padding: 0.7rem; border: 1px solid #334155; border-radius: 8px;
+            background: #0f172a; color: #e2e8f0; font-size: 0.95rem; margin-bottom: 0.8rem;
+        }
+        input:focus, textarea:focus { outline: none; border-color: #3b82f6; }
+        .btn { padding: 0.7rem 1.4rem; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: bold; transition: all 0.2s; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-red { background: #dc2626; color: white; }
+        .btn-red:hover { background: #b91c1c; }
+        .btn-blue { background: #2563eb; color: white; }
+        .btn-blue:hover { background: #1d4ed8; }
+        .btn-gray { background: #475569; color: white; }
+        .btn-gray:hover { background: #334155; }
+        .error { background: #7f1d1d; color: #fca5a5; padding: 0.8rem; border-radius: 8px; margin-bottom: 1rem; }
+        .opinion-row { display: flex; gap: 1rem; }
+        .opinion-col { flex: 1; }
+        .opinion-label-red { color: #f87171; font-weight: bold; }
+        .opinion-label-blue { color: #60a5fa; font-weight: bold; }
+        .room-list { list-style: none; }
+        .room-item { padding: 1rem; border: 1px solid #334155; border-radius: 8px; margin-bottom: 0.5rem; cursor: pointer; transition: all 0.2s; }
+        .room-item:hover { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+        .room-item.selected { border-color: #3b82f6; background: rgba(59,130,246,0.15); }
+        .room-title { font-weight: bold; margin-bottom: 0.3rem; }
+        .room-meta { font-size: 0.8rem; color: #64748b; }
+        .slot-info { display: flex; gap: 0.8rem; margin-top: 0.4rem; font-size: 0.8rem; }
+        .slot-red { color: #f87171; }
+        .slot-blue { color: #60a5fa; }
+        .role-select { display: flex; gap: 0.8rem; margin-bottom: 1rem; }
+        .role-btn { flex: 1; padding: 0.8rem; border: 2px solid #334155; border-radius: 8px; background: transparent; color: #e2e8f0; cursor: pointer; text-align: center; transition: all 0.2s; }
+        .role-btn.active-debater { border-color: #f59e0b; background: rgba(245,158,11,0.1); }
+        .role-btn.active-observer { border-color: #10b981; background: rgba(16,185,129,0.1); }
+        .side-select { display: flex; gap: 0.8rem; margin-bottom: 1rem; }
+        .side-btn { flex: 1; padding: 0.7rem; border: 2px solid #334155; border-radius: 8px; background: transparent; color: #e2e8f0; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        .side-btn.active-red { border-color: #ef4444; background: rgba(239,68,68,0.15); color: #fca5a5; }
+        .side-btn.active-blue { border-color: #3b82f6; background: rgba(59,130,246,0.15); color: #93c5fd; }
+        .hidden { display: none; }
+        .back-link { display: inline-block; margin-bottom: 1rem; color: #64748b; text-decoration: none; font-size: 0.9rem; }
+        .back-link:hover { color: #e2e8f0; }
+        .full-badge { background: #7f1d1d; color: #fca5a5; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <a href="/" class="back-link" style="margin-bottom:0;">← 방 목록으로</a>
+            <span style="font-size:0.9rem; color:#94a3b8;">
+                👤 {{ nickname }}
+                <a href="/logout" style="color:#64748b; text-decoration:none; margin-left:0.5rem;">로그아웃</a>
+            </span>
+        </div>
+        <h1>🎭 토론방</h1>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <!-- 새 토론 만들기 -->
+        <div class="card">
+            <h2>새 토론 만들기</h2>
+            <form method="POST" id="createForm">
+                <input type="hidden" name="action" value="create">
+                <label>토론 주제 (제목)</label>
+                <input type="text" name="title" placeholder="예: 사자 vs 호랑이, 누가 이길까?" required>
+                <label>설명 (선택)</label>
+                <textarea name="description" rows="2" placeholder="추가 설명"></textarea>
+
+                <div class="opinion-row">
+                    <div class="opinion-col">
+                        <label class="opinion-label-red">🔴 레드 진영</label>
+                        <input type="text" name="red_opinion" placeholder="예: 사자가 이긴다">
+                    </div>
+                    <div class="opinion-col">
+                        <label class="opinion-label-blue">🔵 블루 진영</label>
+                        <input type="text" name="blue_opinion" placeholder="예: 호랑이가 이긴다">
+                    </div>
+                </div>
+
+                <label>토론 시간 (분)</label>
+                <input type="number" name="duration" value="10" min="1" max="120">
+                <button type="submit" class="btn btn-primary" style="width:100%;">토론방 만들기</button>
+            </form>
+        </div>
+
+    </div>
+
+</body>
+</html>

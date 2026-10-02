@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}이주의 Top10 - 토론방{% endblock %}
+
+{% block extra_styles %}
+        .rooms-grid { display: grid; gap: 1rem; margin-top: 2rem; }
+        .room-card { position: relative; display: flex; align-items: center; gap: 1.2rem; background: #1e293b; border-radius: 12px; padding: 1.5rem; border: 1px solid #334155; transition: border-color 0.2s; }
+        .room-card:hover { border-color: #fbbf24; }
+        .rank { font-size: 2.5rem; font-weight: bold; color: #64748b; line-height: 1; flex-shrink: 0; margin: 0 1rem; }
+        .rank-1 { color: #fbbf24; }
+        .rank-2 { color: #cbd5e1; }
+        .rank-3 { color: #d97706; }
+        .room-body { min-width: 0; flex: 1; }
+        .title-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; }
+        .title-row h3 { font-size: 1.25rem; margin: 0; }
+        .room-meta { font-size: 0.95rem; color: #94a3b8; }
+        .score-row { display: flex; gap: 1rem; margin-top: 0.8rem; font-size: 1rem; font-weight: bold; }
+        .score-red { color: #fca5a5; }
+        .score-blue { color: #93c5fd; }
+        .winner-tag { font-size: 0.9rem; font-weight: bold; padding: 0.3rem 0.8rem; border-radius: 6px; white-space: nowrap; flex-shrink: 0; }
+        .winner-red { background: #7f1d1d; color: #fca5a5; }
+        .winner-blue { background: #1e3a5f; color: #93c5fd; }
+        .winner-draw { background: #334155; color: #e2e8f0; }
+        .stats { display: flex; gap: 1.2rem; margin-top: 0.8rem; font-size: 0.95rem; color: #94a3b8; }
+        .stats span b { color: #e2e8f0; }
+        .card-footer { position: absolute; bottom: 1.5rem; right: 1.5rem; }
+        .empty-state { text-align: center; padding: 3rem; color: #64748b; }
+{% endblock %}
+
+{% block content %}
+        <div class="section-header">
+            <h2>🏆 이주의 Top10</h2>
+            <span style="color:#94a3b8;font-size:0.95rem;">최근 7일간 가장 뜨거웠던 토론</span>
+        </div>
+
+        <div class="rooms-grid">
+            {% if rooms %}
+            {% for room in rooms %}
+            <div class="room-card">
+                <div class="rank {{ 'rank-1' if loop.index == 1 else ('rank-2' if loop.index == 2 else ('rank-3' if loop.index == 3 else '')) }}">{{ loop.index }}</div>
+                <div class="room-body">
+                    <div class="room-info">
+                        {% set w = room.winner %}
+                        {% set red_name = room.red_opinion.replace(' 승리', '').replace('승리', '') %}
+                        {% set blue_name = room.blue_opinion.replace(' 승리', '').replace('승리', '') %}
+                        <div class="title-row">
+                            <h3>{{ room.title }}</h3>
+                            {% if w == '빨간 진영' %}
+                            <span class="winner-tag winner-red">🔴 {{ red_name }} 팀 승리</span>
+                            {% elif w == '파란 진영' %}
+                            <span class="winner-tag winner-blue">🔵 {{ blue_name }} 팀 승리</span>
+                            {% else %}
+                            <span class="winner-tag winner-draw">🤝 무승부</span>
+                            {% endif %}
+                        </div>
+                        <div class="room-meta">종료: {{ room.created_at[:16].replace('T',' ') }}</div>
+                        <div class="score-row">
+                            <span class="score-red">{{ red_name }} {{ room.red_count }}</span>
+                            <span>:</span>
+                            <span class="score-blue">{{ blue_name }} {{ room.blue_count }}</span>
+                        </div>
+                        <div class="stats">
+                            <span>👁️ 조회수 <b>{{ room.view_count }}</b></span>
+                            <span>💬 댓글 <b>{{ room.comment_count }}</b></span>
+                            <span>🗳️ 투표수 <b>{{ room.vote_total }}</b></span>
+                        </div>
+                        <div class="card-footer">
+                            <a href="{{ url_for('room_detail', room_id=room.id) }}?source=top" class="btn btn-primary" style="padding:0.7rem 1.8rem;font-size:1rem;">다시보기 →</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <p style="font-size:3rem;margin-bottom:1rem;">🏆</p>
+                <p>최근 7일 동안 종료된 토론이 없습니다.</p>
+                <p>토론이 끝나면 이곳에 랭킹됩니다.</p>
+            </div>
+            {% endif %}
+        </div>
+{% endblock %}

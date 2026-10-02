@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}마이페이지 - 토론방{% endblock %}
+
+{% block extra_styles %}
+        .profile-card { background: #1e293b; border-radius: 12px; padding: 2rem; border: 1px solid #334155; max-width: 500px; margin: 0 auto; }
+        .profile-header { text-align: center; margin-bottom: 1.5rem; }
+        .profile-avatar { width: 72px; height: 72px; border-radius: 50%; background: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 0.8rem; color: white; font-weight: bold; }
+        .profile-name { font-size: 1.4rem; font-weight: bold; color: #e2e8f0; }
+        .info-list { list-style: none; }
+        .info-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.9rem 0; border-bottom: 1px solid #334155; }
+        .info-list li:last-child { border-bottom: none; }
+        .info-label { color: #94a3b8; font-size: 0.95rem; }
+        .info-value { color: #e2e8f0; font-size: 0.95rem; font-weight: 600; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .section-header h2 { font-size: 1.2rem; color: #cbd5e1; }
+{% endblock %}
+
+{% block content %}
+        <div class="section-header">
+            <h2>📋 마이페이지</h2>
+            <span style="color:#94a3b8;font-size:0.9rem;">내 정보 관리</span>
+        </div>
+
+        <div class="profile-card">
+            <div class="profile-header">
+                <div class="profile-avatar">{{ nickname[0] }}</div>
+                <div class="profile-name">{{ nickname }}</div>
+            </div>
+            <ul class="info-list">
+                <li>
+                    <span class="info-label">닉네임</span>
+                    <span class="info-value">{{ nickname }}</span>
+                </li>
+                <li>
+                    <span class="info-label">전화번호</span>
+                    <span class="info-value">{{ user['phone_number'] if user else '-' }}</span>
+                </li>
+                <li>
+                    <span class="info-label">가입일</span>
+                    <span class="info-value">{{ user['created_at'][:10].replace('-','.') if user else '-' }}</span>
+                </li>
+            </ul>
+        </div>
+{% endblock %}

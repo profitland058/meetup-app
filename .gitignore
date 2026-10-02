@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 data.db
+debate-room/debate.db
 config.txt
 uploads/
 .omnicoder/

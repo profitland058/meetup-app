@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>토론방 - {{ room.title }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin="anonymous">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Pretendard Variable', Pretendard, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; }
+
+        .header { padding: 0.8rem 1.5rem; background: #1e293b; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+        .header h1 { font-size: 1.2rem; }
+        .header-info { display: flex; align-items: center; gap: 1rem; font-size: 0.85rem; color: #94a3b8; }
+        .timer { font-size: 1.1rem; font-weight: bold; color: #38bdf8; }
+        .timer.warning { color: #ef4444; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.3; } }
+        .status-badge { padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+        .status-open { background: #065f46; color: #6ee7b7; }
+        .status-closed { background: #7f1d1d; color: #fca5a5; }
+        .role-badge { padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+        .role-debater-red { background: #7f1d1d; color: #fca5a5; }
+        .role-debater-blue { background: #1e3a5f; color: #93c5fd; }
+        .role-debater-waiting { background: #78350f; color: #fcd34d; }
+        .role-observer { background: #064e3b; color: #6ee7b7; }
+
+        .main { flex: 1; display: flex; overflow: hidden; }
+
+        /* 채팅 영역 */
+        .chat-area { flex: 1; display: flex; flex-direction: column; }
+        .opinions-bar { display: flex; border-bottom: 1px solid #334155; }
+        .opinion-half { flex: 1; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: bold; }
+        .opinion-red { background: rgba(239,68,68,0.08); color: #fca5a5; border-right: 1px solid #334155; }
+        .opinion-blue { background: rgba(59,130,246,0.08); color: #93c5fd; }
+
+        .messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+        .msg { max-width: 75%; padding: 0.6rem 0.9rem; border-radius: 12px; font-size: 0.9rem; line-height: 1.4; word-break: break-word; }
+        .msg-meta { font-size: 0.7rem; color: #94a3b8; margin-bottom: 0.2rem; display: flex; gap: 0.5rem; align-items: center; }
+        .msg-side-red { align-self: flex-start; background: #1e293b; border-left: 3px solid #ef4444; }
+        .msg-side-blue { align-self: flex-end; background: #1e293b; border-right: 3px solid #3b82f6; text-align: right; }
+        .msg-side-blue .msg-meta { justify-content: flex-end; }
+        .msg-observer { align-self: center; background: #1a2332; border: 1px dashed #475569; max-width: 85%; }
+        .msg-observer .msg-meta { justify-content: center; }
+        .tag-debater { background: #78350f; color: #fcd34d; padding: 0.05rem 0.3rem; border-radius: 3px; font-size: 0.65rem; }
+        .tag-observer { background: #1e3a5f; color: #93c5fd; padding: 0.05rem 0.3rem; border-radius: 3px; font-size: 0.65rem; }
+        .system-msg { text-align: center; font-size: 0.8rem; color: #64748b; padding: 0.3rem; }
+
+        .chat-input-area { padding: 0.8rem 1rem; border-top: 1px solid #334155; background: #1e293b; }
+        .chat-input-row { display: flex; gap: 0.5rem; }
+        .chat-input-row input { flex: 1; padding: 0.7rem; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #e2e8f0; font-size: 0.9rem; }
+        .chat-input-row input:focus { outline: none; border-color: #3b82f6; }
+        .send-btn { padding: 0.7rem 1.2rem; border: none; border-radius: 8px; background: #3b82f6; color: white; cursor: pointer; font-weight: bold; }
+        .send-btn:hover { background: #2563eb; }
+        .send-btn:disabled { background: #475569; cursor: not-allowed; }
+        .input-hint { font-size: 0.75rem; color: #64748b; margin-top: 0.3rem; }
+
+        /* 우측 패널 */
+        .sidebar { width: 320px; background: #1e293b; border-left: 1px solid #334155; padding: 1rem; overflow-y: auto; }
+        .sidebar h3 { font-size: 0.95rem; color: #94a3b8; margin-bottom: 0.8rem; }
+        .participants-section { margin-bottom: 1.2rem; }
+        .part-side { margin-bottom: 0.5rem; font-size: 0.85rem; }
+        .part-side-label { font-weight: bold; margin-bottom: 0.2rem; }
+        .part-side-label.red { color: #f87171; }
+        .part-side-label.blue { color: #60a5fa; }
+        .part-side-label.waiting { color: #fbbf24; }
+        .part-side-label.observer { color: #6ee7b7; }
+        .part-name { display: inline-block; background: #334155; padding: 0.15rem 0.5rem; border-radius: 4px; margin: 0.1rem; font-size: 0.8rem; }
+        .slot-dots { font-size: 0.75rem; color: #64748b; }
+
+        .vote-section { margin-bottom: 1.2rem; }
+        .vote-buttons { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; }
+        .vote-btn { flex: 1; padding: 0.7rem; border: 2px solid #334155; border-radius: 8px; background: transparent; color: #e2e8f0; cursor: pointer; font-weight: bold; font-size: 0.9rem; transition: all 0.2s; }
+        .vote-btn:hover { border-color: #64748b; }
+        .vote-btn.active-red { border-color: #ef4444; background: rgba(239,68,68,0.2); color: #fca5a5; }
+        .vote-btn.active-blue { border-color: #3b82f6; background: rgba(59,130,246,0.2); color: #93c5fd; }
+        .vote-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .vote-bar { display: flex; height: 24px; border-radius: 6px; overflow: hidden; background: #334155; margin-bottom: 0.4rem; }
+        .vote-bar-red { background: #dc2626; transition: width 0.5s; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white; min-width: 0; }
+        .vote-bar-blue { background: #2563eb; transition: width 0.5s; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white; min-width: 0; }
+        .vote-counts { display: flex; justify-content: space-between; font-size: 0.85rem; }
+        .leave-btn { display: block; margin: 1rem auto 0; padding: 0.6rem 1.2rem; border: 1px solid #475569; border-radius: 8px; background: linear-gradient(135deg, #334155 0%, #1e293b 100%); color: #e2e8f0; cursor: pointer; font-weight: bold; font-size: 0.85rem; transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .leave-btn:hover { border-color: #ef4444; background: linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%); color: #fca5a5; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(239,68,68,0.3); }
+        .leave-btn:active { transform: translateY(0); }
+        .vote-total { text-align: center; font-size: 0.8rem; color: #64748b; margin-top: 0.3rem; }
+        .vote-locked { text-align: center; padding: 0.8rem; background: #1a2332; border-radius: 8px; font-size: 0.85rem; color: #94a3b8; }
+
+        .winner-banner { padding: 1rem; border-radius: 8px; text-align: center; font-size: 1.1rem; font-weight: bold; margin-bottom: 1rem; }
+        .winner-red { background: #7f1d1d; color: #fca5a5; }
+        .winner-blue { background: #1e3a5f; color: #93c5fd; }
+
+        /* 토론 종료 승리 팝업 */
+        .winner-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { 0% { transform: scale(0.6); opacity: 0; } 60% { transform: scale(1.05); } 100% { transform: scale(1); opacity: 1; } }
+        .winner-popup { background: linear-gradient(145deg, #1e293b, #0f172a); border: 2px solid #475569; border-radius: 16px; padding: 2.5rem 3rem; text-align: center; min-width: 340px; max-width: 90vw; box-shadow: 0 20px 60px rgba(0,0,0,0.6); animation: popIn 0.4s ease; }
+        .winner-popup.winner-red { border-color: #ef4444; box-shadow: 0 20px 60px rgba(239,68,68,0.3); }
+        .winner-popup.winner-blue { border-color: #3b82f6; box-shadow: 0 20px 60px rgba(59,130,246,0.3); }
+        .winner-popup-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+        .winner-popup-title { font-size: 1.8rem; font-weight: bold; margin-bottom: 0.5rem; }
+        .winner-popup-score { font-size: 1.2rem; color: #94a3b8; margin-bottom: 1.5rem; }
+        .winner-popup-score b.red { color: #fca5a5; }
+        .winner-popup-score b.blue { color: #93c5fd; }
+        .winner-popup-btn { padding: 0.7rem 2rem; border: none; border-radius: 8px; background: #fbbf24; color: #0f172a; font-weight: bold; font-size: 1rem; cursor: pointer; transition: all 0.2s; }
+        .winner-popup-btn:hover { background: #f59e0b; transform: translateY(-1px); }
+
+        /* 관중 댓글 패널 */
+        .comments-panel { width: 280px; background: #162032; display: flex; flex-direction: column; }
+        .comments-header { padding: 0.8rem 1rem; border-bottom: 1px solid #334155; font-weight: bold; font-size: 0.9rem; color: #94a3b8; }
+        .comments-list { flex: 1; overflow-y: auto; padding: 0.8rem; display: flex; flex-direction: column; gap: 0.5rem; }
+        .comment-item { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 0.5rem 0.7rem; font-size: 0.85rem; line-height: 1.4; word-break: break-word; }
+        .comment-meta { font-size: 0.7rem; color: #6ee7b7; margin-bottom: 0.2rem; }
+        .comments-input-area { padding: 0.8rem; border-top: 1px solid #334155; }
+        .comments-input-row { display: flex; gap: 0.4rem; }
+        .comments-input-row input { flex: 1; padding: 0.6rem; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #e2e8f0; font-size: 0.85rem; }
+        .comments-input-row input:focus { outline: none; border-color: #6ee7b7; }
+        .comments-send-btn { padding: 0.6rem 0.9rem; border: none; border-radius: 8px; background: #065f46; color: #6ee7b7; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
+        .comments-send-btn:hover { background: #047857; }
+        .comments-hint { font-size: 0.7rem; color: #64748b; margin-top: 0.3rem; }
+
+        /* 경고 모달 */
+        .mod-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9998; display: flex; align-items: center; justify-content: center; }
+        .mod-modal { background: #1e293b; border-radius: 12px; padding: 1.5rem; max-width: 380px; width: 90%; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.5); animation: modalIn 0.25s ease; }
+        .mod-modal-icon { font-size: 2.5rem; margin-bottom: 0.8rem; }
+        .mod-modal-text { font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.2rem; }
+        .mod-modal-close { padding: 0.6rem 2rem; border: none; border-radius: 8px; background: #3b82f6; color: white; font-size: 0.9rem; font-weight: bold; cursor: pointer; }
+        .mod-modal-close:hover { background: #2563eb; }
+        .mod-modal-warning .mod-modal-text { color: #fcd34d; }
+        .mod-modal-blocked .mod-modal-text { color: #fca5a5; }
+        @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* 정지 배너 */
+        .suspend-banner { padding: 0.8rem 1rem; background: #7f1d1d; color: #fca5a5; text-align: center; font-size: 0.9rem; font-weight: bold; }
+        .input-disabled { opacity: 0.4; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ room.title }}</h1>
+        <div class="header-info">
+            {% if my_role == 'debater_red' %}
+                <span class="role-badge role-debater-red">🔴 토론자 (빨간)</span>
+            {% elif my_role == 'debater_blue' %}
+                <span class="role-badge role-debater-blue">🔵 토론자 (파란)</span>
+            {% elif my_role == 'debater_waiting' %}
+                <span class="role-badge role-debater-waiting">⏳ 대기 중</span>
+            {% else %}
+                <span class="role-badge role-observer">👁️ 관전자</span>
+            {% endif %}
+            <span class="status-badge {{ 'status-open' if room.status == 'open' else 'status-closed' }}">
+                {{ '진행 중' if room.status == 'open' else '마감됨' }}
+            </span>
+            <span class="timer" id="timer">{% if room.deadline %}{{ room.deadline[:16].replace('T',' ') }}{% else %}마감{% endif %}</span>
+        </div>
+    </div>
+
+    <div class="main">
+        <!-- 채팅 -->
+        <div class="chat-area">
+            <div class="opinions-bar">
+                <div class="opinion-half opinion-red">🔴 {{ room.red_opinion }}</div>
+                <div class="opinion-half opinion-blue">🔵 {{ room.blue_opinion }}</div>
+            </div>
+
+            <div class="messages" id="messages">
+                {% for m in messages %}
+                {% if m.role != 'observer' %}
+                <div class="msg {{ 'msg-side-red' if m.side == 'red' else 'msg-side-blue' }}">
+                    <div class="msg-meta"><span class="tag-debater">토론</span> {{ m.nickname }} · {{ m.created_at[11:16] }}</div>
+                    {{ m.content }}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            <div class="chat-input-area">
+                {% if room.status == 'open' and my_role is not none and my_role != 'debater_waiting' and my_role.startswith('debater') %}
+                <div class="chat-input-row">
+                    <input type="text" id="msgInput" placeholder="메시지를 입력하세요..." maxlength="500" onkeypress="if(event.key==='Enter')sendMsg()">
+                    <button class="send-btn" onclick="sendMsg()">전송</button>
+                </div>
+                <div class="input-hint">🗣️ 토론자 모드 — 진영 채팅으로 발언합니다</div>
+                {% else %}
+                <div class="input-hint">
+                    {% if my_role == 'debater_waiting' %}
+                        ⏳ 토론자 자리가 비면 자동으로 승격됩니다.
+                    {% elif my_role == 'observer' %}
+                        👁️ 관전자 모드 — 오른쪽 패널에서 댓글을 남길 수 있습니다.
+                    {% else %}
+                        토론이 마감되었습니다.
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 관중 댓글 패널 -->
+        <div class="comments-panel">
+            <div class="comments-header">💬 관중 댓글</div>
+            <div class="comments-list" id="commentsList">
+                {% for m in messages %}
+                {% if m.role == 'observer' %}
+                <div class="comment-item">
+                    <div class="comment-meta">{{ m.nickname }} · {{ m.created_at[11:16] }}</div>
+                    {{ m.content }}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            <div class="comments-input-area">
+                {% if room.status == 'open' and my_role == 'observer' %}
+                <div class="comments-input-row">
+                    <input type="text" id="commentInput" placeholder="댓글 남기기..." maxlength="500" onkeypress="if(event.key==='Enter')sendComment()">
+                    <button class="comments-send-btn" onclick="sendComment()">전송</button>
+                </div>
+                <div class="comments-hint">관전자만 댓글을 남길 수 있습니다.</div>
+                {% else %}
+                <div class="comments-hint">
+                    {% if my_role is not none and my_role.startswith('debater') %}
+                        토론자는 채팅으로 발언합니다.
+                    {% else %}
+                        토론이 마감되었습니다.
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 우측 사이드바 -->
+        <div class="sidebar">
+            <!-- 참여자 -->
+            <div class="participants-section">
+                <h3>👥 참여자</h3>
+                <div class="part-side">
+                    <div class="part-side-label red">🔴 {{ room['red_opinion'] }} 팀</div>
+                    {% for name in participants.red_debaters %}
+                        <span class="part-name">{{ name }}</span>
+                    {% else %}
+                        <span class="slot-dots">비어 있음</span>
+                    {% endfor %}
+                    <span class="slot-dots">({{ participants.red_debaters|length }}/{{ max_per_side }})</span>
+                </div>
+                <div class="part-side">
+                    <div class="part-side-label blue">🔵 {{ room['blue_opinion'] }} 팀</div>
+                    {% for name in participants.blue_debaters %}
+                        <span class="part-name">{{ name }}</span>
+                    {% else %}
+                        <span class="slot-dots">비어 있음</span>
+                    {% endfor %}
+                    <span class="slot-dots">({{ participants.blue_debaters|length }}/{{ max_per_side }})</span>
+                </div>
+                {% if participants.waiting %}
+                <div class="part-side">
+                    <div class="part-side-label waiting">⏳ 대기</div>
+                    {% for name in participants.waiting %}
+                        <span class="part-name">{{ name }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {# 관전자 닉네임 목록은 노출하지 않음 #}
+            </div>
+
+            <!-- 투표 -->
+            <div class="vote-section">
+                <h3>📊 투표</h3>
+                {% if room.status == 'closed' %}
+                    {% set w = room.winner %}
+                    <div class="winner-banner {{ 'winner-red' if w == '빨간 진영' else ('winner-blue' if w == '파란 진영' else 'winner-draw') }}">
+                        {% if w == '빨간 진영' %}🔴 {{ room['red_opinion'] }} 팀 승리!{% elif w == '파란 진영' %}🔵 {{ room['blue_opinion'] }} 팀 승리!{% else %}🤝 무승부{% endif %}
+                    </div>
+                {% elif my_role == 'observer' %}
+                    <div class="vote-buttons">
+                        <button class="vote-btn {{ 'active-red' if my_vote == 'red' }}" id="btnRed" onclick="castVote('red')" title="{{ room['red_opinion'] }}">🔴 {{ room['red_opinion'] }}</button>
+                        <button class="vote-btn {{ 'active-blue' if my_vote == 'blue' }}" id="btnBlue" onclick="castVote('blue')" title="{{ room['blue_opinion'] }}">🔵 {{ room['blue_opinion'] }}</button>
+                    </div>
+                {% else %}
+                    <div class="vote-locked">🔒 토론자는 투표할 수 없습니다<br><small>관전자만 투표 가능합니다</small></div>
+                {% endif %}
+
+                <div class="vote-bar">
+                    <div class="vote-bar-red" id="barRed" style="width:{{ red_pct }}%;">{{ red_count }}</div>
+                    <div class="vote-bar-blue" id="barBlue" style="width:{{ blue_pct }}%;">{{ blue_count }}</div>
+                </div>
+                <div class="vote-counts">
+                    <span style="color:#f87171;">🔴 {{ red_count }}</span>
+                    <span style="color:#60a5fa;">🔵 {{ blue_count }}</span>
+                </div>
+                <div class="vote-total">총 {{ red_count + blue_count }}표</div>
+            </div>
+
+            <!-- 관중 → 토론자 전환 -->
+            {% if my_role == 'observer' and room.status == 'open' %}
+            <div class="switch-section">
+                <h3>🔄 진영 참여</h3>
+                <p style="font-size:0.8rem;color:#94a3b8;margin-bottom:0.6rem;">토론자 자리가 비어 있으면 바로 참여, 아니면 대기열에 들어갑니다.</p>
+                <div class="vote-buttons">
+                    <button class="vote-btn" id="btnJoinRed" onclick="joinSide('red')" title="{{ room['red_opinion'] }}">🔴 {{ room['red_opinion'] }}</button>
+                    <button class="vote-btn" id="btnJoinBlue" onclick="joinSide('blue')" title="{{ room['blue_opinion'] }}">🔵 {{ room['blue_opinion'] }}</button>
+                </div>
+            </div>
+            {% endif %}
+
+            <button class="leave-btn" onclick="leaveRoom()">🚪 방 나가기</button>
+        </div>
+    </div>
+    </div>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        const roomId = {{ room.id }};
+        const nickname = "{{ nickname }}";
+        const myRole = {{ my_role|tojson if my_role else 'null' }};
+        const deadline = {{ room.deadline|tojson if room.deadline else 'null' }} ? new Date({{ room.deadline|tojson }}).getTime() : Date.now();
+        let closed = {{ 'false' if room.status == 'open' else 'true' }};
+
+        // ==================== Moderation (클라이언트 필터) ====================
+        // 토론자 차단 키워드: 욕설 + 광고 + 오프토픽
+        const BANNED_DEBATER = [
+            // 욕설/비매너
+            'fuck','shit','bitch','asshole','bastard','dickhead','idiot','stupid',
+            'idiota','dumbass','moron','retard','faggot','nigger','cunt','slut',
+            'bitchy','pissed','jerk','wanker','prick','arsehole','bollocks',
+            '젠장','씨발','씨발놈','개새끼','병신','미친놈','미쳤어','무식한년','씨팔',
+            '치킨이아니면요리도못해','개같','개보다','개 같은','창피하게','멍청이','바보 같',
+            // 광고/스팸
+            'http://','https://','www.','@gmail.com','@naver.com','@daum.net',
+            '광고','판매','프로모션','쿠폰','할인','특가','구매','주문','배송',
+            'click here','buy now','limited offer','free money','crypto','bitcoin','btc',
+            '카지노','도박','판촉','마케팅','고객센터','신청방법','참여하기',
+            // 오프토픽
+            '방탈출','퀴즈','로또','추첨','게임','연애','소개팅','결혼상담',
+            '부업','직구','해외구매','환전','송금','계정거래','아이디 거래',
+        ];
+        // 관중 차단 키워드: 욕설 + 광고 (오프토픽 제외)
+        const BANNED_OBSERVER = [
+            'fuck','shit','bitch','asshole','bastard','dickhead','idiot','stupid',
+            'idiota','dumbass','moron','retard','faggot','nigger','cunt','slut',
+            'bitchy','pissed','jerk','wanker','prick','arsehole','bollocks',
+            '젠장','씨발','씨발놈','개새끼','병신','미친놈','미쳤어','무식한년','씨팔',
+            '치킨이아니면요리도못해','개같','개보다','개 같은','창피하게','멍청이','바보 같',
+            'http://','https://','www.','@gmail.com','@naver.com','@daum.net',
+            '광고','판매','프로모션','쿠폰','할인','특가','구매','주문','배송',
+            'click here','buy now','limited offer','free money','crypto','bitcoin','btc',
+            '카지노','도박','판촉','마케팅','고객센터','신청방법','참여하기',
+        ];
+
+        function isBlocked(text, keywords) {
+            const lower = text.toLowerCase();
+            for (const kw of keywords) {
+                if (lower.includes(kw.toLowerCase())) return true;
+            }
+            return false;
+        }
+
+        function checkModeration(content) {
+            const kws = myRole && myRole.startsWith('debater') ? BANNED_DEBATER : BANNED_OBSERVER;
+            return isBlocked(content, kws);
+        }
+
+        function showModModal(msg, type, icon) {
+            const overlay = document.createElement('div');
+            overlay.className = 'mod-modal-overlay';
+            overlay.innerHTML = `<div class="mod-modal mod-modal-${type}">
+                <div class="mod-modal-icon">${icon || (type === 'warning' ? '⚠️' : '🚫')}</div>
+                <div class="mod-modal-text">${msg}</div>
+                <button class="mod-modal-close" onclick="this.closest('.mod-modal-overlay').remove()">확인</button>
+            </div>`;
+            document.body.appendChild(overlay);
+        }
+
+        function disableInputs() {
+            ['msgInput','commentInput'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.disabled = true; el.classList.add('input-disabled'); }
+            });
+        }
+
+        function enableInputs() {
+            ['msgInput','commentInput'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.disabled = false; el.classList.remove('input-disabled'); }
+            });
+        }
+
+        // 전송 전 필터링 래퍼 — B안: 차단 시에도 chat_message emit → 서버 check_moderation() 경유
+        function preFilterCheck(inputId, sendFn) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            const content = input.value.trim();
+            if (!content || closed) return;
+            if (checkModeration(content)) {
+                showModModal('비매너 표현이 감지되어 전송이 차단되었습니다.', 'blocked', '🚫');
+                input.value = '';
+                // 클라이언트 1차 차단 + 서버에 경고 누적 요청
+                const role = (myRole && myRole.startsWith('debater')) ? 'debater' : 'observer';
+                const side = (myRole === 'debater_red') ? 'red' : 'blue';
+                try {
+                    socket.emit('chat_message', { room_id: roomId, nickname, content, side, role, moderation_pre_blocked: true });
+                } catch(e) {}
+                return;
+            }
+            sendFn();
+        }
+
+        // ==================== Socket.IO ====================
+        const socket = io();
+        socket.on('connect', () => {
+            console.log('Socket connected:', socket.id);
+        });
+        socket.on('disconnect', () => {
+            console.log('Socket disconnected');
+        });
+
+        // 서버에서 온 moderation 경고/차단 수신
+        socket.on('moderation_warning', (data) => {
+            if (data.room_id !== roomId) return;
+            const cnt = data.warning_count || 0;
+            if (data.nickname === nickname) {
+                showModModal(`경고 ${cnt}/3 — 비매너 표현이 감지되었습니다. 한 번 더 위반하면 계정 정지됩니다.`, 'warning', '⚠️');
+            } else if (myRole && myRole.startsWith('debater')) {
+                addSystemMsg(`🔔 <strong>${data.nickname}</strong>님이 비매너 발언으로 경고 ${cnt}회를 받았습니다.`);
+            }
+        });
+        socket.on('moderation_blocked', (data) => {
+            if (data.room_id !== roomId) return;
+            if (data.nickname === nickname) {
+                showModModal('3회 위반으로 계정 정지되었습니다. 홈으로 이동합니다.', 'blocked', '🚫');
+                disableInputs();
+                setTimeout(() => { window.location.href = '/'; }, 1500);
+            } else if (myRole && myRole.startsWith('debater')) {
+                addSystemMsg(`🚫 <strong>${data.nickname}</strong>님이 비매너 발언 3회로 계정 정지되었습니다.`);
+            }
+        });
+        socket.on('moderation_suspended', (data) => {
+            if (data.room_id !== roomId) return;
+            if (data.nickname === nickname) {
+                showModModal('계정 정지되었습니다. 홈으로 이동합니다.', 'blocked', '🔒');
+                disableInputs();
+                setTimeout(() => { window.location.href = '/'; }, 1500);
+            } else if (myRole && myRole.startsWith('debater')) {
+                addSystemMsg(`🚫 <strong>${data.nickname}</strong>님이 비매너 발언 3회로 계정 정지되었습니다.`);
+            }
+        });
+        socket.on('moderation_unsuspended', (data) => {
+            if (data.room_id !== roomId) return;
+            if (data.nickname === nickname) {
+                showModModal('정지가 해제되었습니다.', 'warning', '✅');
+                enableInputs();
+            }
+        });
+
+
+        function updateTimer() {
+            if (closed) return;
+            const now = Date.now();
+            const remaining = Math.max(0, deadline - now);
+            const totalSec = Math.floor(remaining / 1000);
+            const min = Math.floor(totalSec / 60);
+            const sec = totalSec % 60;
+            const el = document.getElementById('timer');
+            el.textContent = `${min}:${sec.toString().padStart(2,'0')}`;
+            if (totalSec <= 60) el.classList.add('warning');
+            if (remaining <= 0) { closed = true; el.textContent = '마감'; }
+        }
+        setInterval(updateTimer, 1000);
+        updateTimer();
+
+        // 메시지 스크롤
+        function scrollBottom() {
+            const m = document.getElementById('messages');
+            m.scrollTop = m.scrollHeight;
+        }
+        scrollBottom();
+
+        // 채팅 전송 (토론자) — 전송 전 필터링 경유
+        function sendMsg() {
+            preFilterCheck('msgInput', doSendMsg);
+        }
+        function doSendMsg() {
+            const input = document.getElementById('msgInput');
+            if (!input) return;
+            const content = input.value.trim();
+            if (!content || closed) return;
+            let side;
+            if (myRole === 'debater_red') side = 'red';
+            else side = 'blue';
+            socket.emit('chat_message', { room_id: roomId, nickname, content, side, role: 'debater' });
+            input.value = '';
+        }
+
+        // 댓글 전송 (관중) — 전송 전 필터링 경유
+        function sendComment() {
+            preFilterCheck('commentInput', doSendComment);
+        }
+        function doSendComment() {
+            const input = document.getElementById('commentInput');
+            if (!input) return;
+            const content = input.value.trim();
+            if (!content || closed) return;
+            socket.emit('chat_message', { room_id: roomId, nickname, content, side: 'red', role: 'observer' });
+            input.value = '';
+        }
+
+        // 댓글 스크롤
+        function scrollComments() {
+            const c = document.getElementById('commentsList');
+            c.scrollTop = c.scrollHeight;
+        }
+        scrollComments();
+
+        // 새 메시지 수신
+        socket.on('new_message', (data) => {
+            if (data.room_id !== roomId) return;
+            const time = data.created_at.substring(11, 16);
+            if (data.role === 'observer') {
+                const div = document.createElement('div');
+                div.className = 'comment-item';
+                div.innerHTML = `<div class="comment-meta">${data.nickname} · ${time}</div>${escapeHtml(data.content)}`;
+                document.getElementById('commentsList').appendChild(div);
+                scrollComments();
+            } else {
+                const div = document.createElement('div');
+                div.className = `msg ${data.side === 'red' ? 'msg-side-red' : 'msg-side-blue'}`;
+                div.innerHTML = `<div class="msg-meta"><span class="tag-debater">토론</span> ${data.nickname} · ${time}</div>${escapeHtml(data.content)}`;
+                document.getElementById('messages').appendChild(div);
+                scrollBottom();
+            }
+        });
+
+        // 투표
+        function castVote(vote) {
+            if (closed) return;
+            fetch(`/api/vote/${roomId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({vote})
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.error) alert(d.error);
+            });
+        }
+
+        // 투표 업데이트
+        socket.on('vote_update', (data) => {
+            if (data.room_id !== roomId) return;
+            const total = data.red + data.blue;
+            const redPct = total > 0 ? (data.red / total * 100) : 50;
+            const bluePct = total > 0 ? (data.blue / total * 100) : 50;
+            document.getElementById('barRed').style.width = redPct + '%';
+            document.getElementById('barRed').textContent = data.red;
+            document.getElementById('barBlue').style.width = bluePct + '%';
+            document.getElementById('barBlue').textContent = data.blue;
+            document.querySelector('.vote-counts span:first-child').textContent = `🔴 ${data.red}`;
+            document.querySelector('.vote-counts span:last-child').textContent = `🔵 ${data.blue}`;
+            document.querySelector('.vote-total').textContent = `총 ${total}표`;
+            if (data.voter === nickname) {
+                document.getElementById('btnRed').className = 'vote-btn' + (data.vote === 'red' ? ' active-red' : '');
+                document.getElementById('btnBlue').className = 'vote-btn' + (data.vote === 'blue' ? ' active-blue' : '');
+            }
+        });
+
+        // 방 마감
+        socket.on('room_closed', (data) => {
+            if (data.room_id !== roomId) return;
+            closed = true;
+            document.getElementById('timer').textContent = '마감';
+            const vs = document.querySelector('.vote-section');
+            let cls = 'winner-draw', txt = '🤝 무승부';
+            if (data.winner === '빨간 진영') { cls = 'winner-red'; txt = '🔴 ' + data.red_name + ' 팀 승리!'; }
+            else if (data.winner === '파란 진영') { cls = 'winner-blue'; txt = '🔵 ' + data.blue_name + ' 팀 승리!'; }
+            vs.insertAdjacentHTML('afterbegin', `<div class="winner-banner ${cls}">${txt}</div>`);
+            const btns = document.querySelectorAll('.vote-btn');
+            btns.forEach(b => b.disabled = true);
+            showWinnerPopup(data);
+        });
+
+        function showWinnerPopup(data) {
+            let icon, title, cls;
+            if (data.winner === '빨간 진영') {
+                icon = '🏆'; title = '🔴 ' + data.red_name + ' 팀 승리!'; cls = 'winner-red';
+            } else if (data.winner === '파란 진영') {
+                icon = '🏆'; title = '🔵 ' + data.blue_name + ' 팀 승리!'; cls = 'winner-blue';
+            } else {
+                icon = '🤝'; title = '무승부'; cls = '';
+            }
+            const red = data.red_count || 0, blue = data.blue_count || 0;
+            const overlay = document.createElement('div');
+            overlay.className = 'winner-overlay';
+            overlay.id = 'winnerOverlay';
+            overlay.innerHTML = `
+                <div class="winner-popup ${cls}">
+                    <div class="winner-popup-icon">${icon}</div>
+                    <div class="winner-popup-title">${title}</div>
+                    <div class="winner-popup-score"><b class="red">${red}</b> : <b class="blue">${blue}</b></div>
+                    <button class="winner-popup-btn" onclick="document.getElementById('winnerOverlay').remove()">확인</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        // 관중 → 토론자 전환
+        function joinSide(side) {
+            fetch(`/api/switch_role/${roomId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({role: 'debater', side})
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.error) alert(d.error);
+                else location.reload();
+            });
+        }
+
+        // 방 나가기
+        function leaveRoom() {
+            fetch(`/api/leave/${roomId}`, {method: 'POST'})
+            .then(() => window.location.href = '/');
+        }
+
+        function escapeHtml(t) {
+            const d = document.createElement('div');
+            d.textContent = t;
+            return d.innerHTML;
+        }
+
+        // 페이지 로드 시 이미 마감된 방이면 즉시 팝업 표시 (Top10/나의 토론에서 온 경우 제외)
+        const fromList = {{ 'true' if from_list else 'false' }};
+        if (closed && !fromList) {
+            showWinnerPopup({
+                room_id: roomId,
+                winner: {{ room.winner|tojson if room.winner else 'null' }},
+                red_count: {{ red_count }},
+                blue_count: {{ blue_count }},
+                red_name: {{ room['red_opinion']|tojson }},
+                blue_name: {{ room['blue_opinion']|tojson }}
+            });
+        }
+    </script>
+</body>
+</html>
