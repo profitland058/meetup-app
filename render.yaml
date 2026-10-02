@@ -1,10 +1,10 @@
 services:
   - type: web
-    name: debate-room
+    name: debate-room-jrsu
     runtime: python
     plan: free
     buildCommand: pip install -r debate-room/requirements.txt
-    startCommand: cd debate-room && python app.py
+    startCommand: python debate-room/app.py
     envVars:
       - key: FLASK_DEBUG
         value: "0"
