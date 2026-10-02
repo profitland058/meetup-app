@@ -23,7 +23,8 @@ MAX_DEBATTERS_PER_SIDE = 3
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
+        # timeout=5: DB 잠금 시 5초 대기 후 예외 발생 (무한 대기 방지)
+        g.db = sqlite3.connect(DB_PATH, timeout=5)
         g.db.row_factory = sqlite3.Row
         g.db.execute("PRAGMA journal_mode=WAL")
     return g.db
@@ -282,55 +283,71 @@ def register():
 import logging
 
 def _bg_check_all_deadlines():
-    """백그라운드: 모든 open 방의 마감 시간을 체크하고 종료 이벤트를 보냄."""
-    conn = sqlite3.connect(DB_PATH)
+    """백그라운드: 모든 open 방의 마감 시간을 체크하고 종료 이벤트를 보냄.
+    동시 접속 시 DB 잠금 문제를 줄이기 위해:
+    1. 단일 트랜잭션으로 처리
+    2. 불필요한 쿼리 최소화
+    3. emit을 마지막에 한 번만 호출"""
+    conn = sqlite3.connect(DB_PATH, timeout=5)  # 5초 타임아웃 설정
     conn.row_factory = sqlite3.Row
+    closed_rooms = []
     try:
-        rows = conn.execute("SELECT id FROM rooms WHERE status='open'").fetchall()
-        for r in rows:
-            # check_deadline은 요청 컨텍스트(get_db)를 쓰므로, 여기서는 직접 처리
-            row = conn.execute("SELECT * FROM rooms WHERE id=?", (r["id"],)).fetchone()
-            if not row or row["status"] != "open":
-                continue
+        # 모든 open 방을 한 번에 조회
+        rows = conn.execute("SELECT * FROM rooms WHERE status='open'").fetchall()
+        
+        for row in rows:
             deadline = datetime.fromisoformat(row["deadline"])
-            if datetime.now() >= deadline:
-                red_count = conn.execute(
-                    "SELECT COUNT(*) as c FROM votes WHERE room_id=? AND vote='red'", (r["id"],)
-                ).fetchone()["c"]
-                blue_count = conn.execute(
-                    "SELECT COUNT(*) as c FROM votes WHERE room_id=? AND vote='blue'", (r["id"],)
-                ).fetchone()["c"]
-                if red_count > blue_count:
-                    winner = "빨간 진영"
-                elif blue_count > red_count:
-                    winner = "파란 진영"
-                else:
-                    winner = "무승부"
-                conn.execute("UPDATE rooms SET status='closed', winner=? WHERE id=?", (winner, r["id"]))
-                conn.commit()
-                with app.app_context():
-                    socketio.emit("room_closed", {
-                        "room_id": row["id"],
-                        "winner": winner,
-                        "red_count": red_count,
-                        "blue_count": blue_count,
-                        "red_name": row["red_opinion"],
-                        "blue_name": row["blue_opinion"],
-                    })
+            if datetime.now() < deadline:
+                continue
+            
+            # 투표 수 조회
+            red_count = conn.execute(
+                "SELECT COUNT(*) as c FROM votes WHERE room_id=? AND vote='red'", (row["id"],)
+            ).fetchone()["c"]
+            blue_count = conn.execute(
+                "SELECT COUNT(*) as c FROM votes WHERE room_id=? AND vote='blue'", (row["id"],)
+            ).fetchone()["c"]
+            
+            if red_count > blue_count:
+                winner = "빨간 진영"
+            elif blue_count > red_count:
+                winner = "파란 진영"
+            else:
+                winner = "무승부"
+            
+            conn.execute("UPDATE rooms SET status='closed', winner=? WHERE id=?", (winner, row["id"]))
+            closed_rooms.append({
+                "room_id": row["id"],
+                "winner": winner,
+                "red_count": red_count,
+                "blue_count": blue_count,
+                "red_name": row["red_opinion"],
+                "blue_name": row["blue_opinion"],
+            })
+        
+        # 한 번에 커밋
+        if closed_rooms:
+            conn.commit()
+            with app.app_context():
+                for room_info in closed_rooms:
+                    socketio.emit("room_closed", room_info)
+    
     except Exception:
         logging.exception("_bg_check_all_deadlines 실패")
+        conn.rollback()
     finally:
         conn.close()
 
 
 def _deadline_scheduler():
-    """매 1초마다 open 방의 마감을 체크하는 데몬 스레드."""
+    """매 10초마다 open 방의 마감을 체크하는 데몬 스레드.
+    동시 접속 시 DB 잠금 문제를 줄이기 위해 체크 주기를 늘림."""
     while True:
         try:
             _bg_check_all_deadlines()
         except Exception:
-            pass
-        time.sleep(1)
+            logging.exception("_deadline_scheduler 실패")
+        time.sleep(10)
 
 
 def check_deadline(room_id):
