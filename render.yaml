@@ -3,8 +3,8 @@ services:
     name: debate-room-jrsu
     runtime: python
     plan: free
-    buildCommand: pip install -r debate-room/requirements.txt
-    startCommand: python debate-room/app.py
+    buildCommand: pip install -r debate-room/requirements.txt gunicorn
+    startCommand: gunicorn --worker-class gthread --bind 0.0.0.0:$PORT debate-room.app:app
     envVars:
       - key: FLASK_DEBUG
         value: "0"
