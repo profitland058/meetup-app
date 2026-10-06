@@ -498,9 +498,7 @@ def healthz():
 @app.route("/")
 def index():
     db = get_db()
-    # 마감 시간이 지난 open 방을 먼저 정리
-    for r in db.execute("SELECT id FROM rooms WHERE status='open'").fetchall():
-        check_deadline(r["id"])
+    # 마감 체크는 _deadline_scheduler(10초 주기)가 담당 — 여기서는 조회만
     # 메인에는 진행 중인(open) 토론만 노출
     rooms = db.execute("SELECT * FROM rooms WHERE status='open' ORDER BY created_at DESC").fetchall()
     result = []
@@ -643,9 +641,11 @@ def join_page():
             role = request.form.get("role", "observer")
             side = request.form.get("side", "")
 
-            room = check_deadline(int(target_room))
-            if not room:
+            db = get_db()
+            room_row = db.execute("SELECT * FROM rooms WHERE id=?", (int(target_room),)).fetchone()
+            if not room_row:
                 return redirect(url_for("index"))
+            room = dict(room_row)
             if room["status"] != "open":
                 return redirect(url_for("room_detail", room_id=target_room))
 
@@ -702,8 +702,7 @@ def join_page():
             return redirect(url_for("index"))
 
     db = get_db()
-    for r in db.execute("SELECT id FROM rooms WHERE status='open'").fetchall():
-        check_deadline(r["id"])
+    # 마감 체크는 _deadline_scheduler(10초 주기)가 담당 — 여기서는 조회만
     rooms = db.execute("SELECT * FROM rooms WHERE status='open' ORDER BY created_at DESC").fetchall()
     rooms_list = []
     for r in rooms:
@@ -717,10 +716,12 @@ def join_page():
 
 @app.route("/room/<int:room_id>")
 def room_detail(room_id):
-    # 마감 시간이 지난 open 방을 먼저 정리
-    room = check_deadline(room_id)
-    if not room:
+    # 마감 체크는 _deadline_scheduler(10초 주기)가 담당 — 여기서는 조회만
+    db = get_db()
+    room_row = db.execute("SELECT * FROM rooms WHERE id=?", (room_id,)).fetchone()
+    if not room_row:
         return redirect(url_for("index"))
+    room = dict(room_row)
 
     is_closed = room["status"] == "closed"
     nickname = session.get("nickname")
@@ -807,8 +808,9 @@ def api_vote(room_id):
     if vote not in ("red", "blue"):
         return jsonify({"error": "유효하지 않은 투표입니다"}), 400
 
-    room = check_deadline(room_id)
-    if not room or room["status"] != "open":
+    db = get_db()
+    room_row = db.execute("SELECT * FROM rooms WHERE id=?", (room_id,)).fetchone()
+    if not room_row or room_row["status"] != "open":
         return jsonify({"error": "투표가 마감되었습니다"}), 400
 
     db = get_db()
@@ -1231,12 +1233,12 @@ def handle_chat(data):
         if user_role != "observer":
             return
 
-    room = check_deadline(room_id)
-    if not room:
+    db = get_db()
+    room_row = db.execute("SELECT * FROM rooms WHERE id=?", (room_id,)).fetchone()
+    if not room_row or room_row["status"] != "open":
         return
 
     # 비매너 검사
-    db = get_db()
     blocked, action, warn_count, vtype = check_moderation(db, room_id, nickname, content, role)
     if blocked:
         if action == "suspended":
