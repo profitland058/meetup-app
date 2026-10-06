@@ -1310,9 +1310,11 @@ def _init_background_tasks():
         socketio.start_background_task(_deadline_scheduler)
 
 # Gunicorn 또는 다른 WSGI 서버가 로드할 때
+# /healthz는 제외 — 헬스체크가 SocketIO 초기화를 유발하면 Render가 재시작함
 @app.before_request
 def _ensure_background_tasks():
-    _init_background_tasks()
+    if request.path != "/healthz":
+        _init_background_tasks()
 
 if __name__ == "__main__":
     # 직접 실행 시 (개발용)
