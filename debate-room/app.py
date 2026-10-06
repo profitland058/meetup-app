@@ -164,7 +164,8 @@ def seed_demo_rooms():
     ]
     for title, red, blue, dur, status in demos:
         created = now - timedelta(days=2)
-        deadline = now + timedelta(minutes=dur) if status == "open" else now - timedelta(days=1)
+        # open 데모 방은 24시간 후 마감 — 즉시 close되는 문제 방지
+        deadline = now + timedelta(hours=24) if status == "open" else now - timedelta(days=1)
         winner = "red" if status == "ended" else ""
         conn.execute(
             "INSERT INTO rooms (title, description, red_opinion, blue_opinion, duration_minutes, created_at, deadline, status, winner) VALUES (?,?,?,?,?,?,?,?,?)",
