@@ -308,7 +308,11 @@
         const roomId = {{ room.id }};
         const nickname = "{{ nickname }}";
         const myRole = {{ my_role|tojson if my_role else 'null' }};
-        const deadline = {{ room.deadline|tojson if room.deadline else 'null' }} ? new Date({{ room.deadline|tojson }}).getTime() : Date.now();
+        // deadline: 서버(Render, UTC)가 저장한 naive datetime에 'Z'를 붙여 UTC로 해석
+        // 한국 브라우저(UTC+9)에서도 올바른 절대 시각이 됨
+        const deadline = {{ room.deadline|tojson if room.deadline else 'null' }}
+            ? new Date({{ room.deadline|tojson }}.replace(/\.\d+$/, '') + "Z").getTime()
+            : Date.now();
         let closed = {{ 'false' if room.status == 'open' else 'true' }};
 
         // ==================== Moderation (클라이언트 필터) ====================
