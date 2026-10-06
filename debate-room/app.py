@@ -24,9 +24,9 @@ MAX_DEBATTERS_PER_SIDE = 3
 def get_db():
     if "db" not in g:
         # timeout=5: DB 잠금 시 5초 대기 후 예외 발생 (무한 대기 방지)
+        # WAL 모드 사용 안 함 — Render 에페메럴 FS에서 -wal/-shm 파일 손실 방지
         g.db = sqlite3.connect(DB_PATH, timeout=5)
         g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA journal_mode=WAL")
     return g.db
 
 
@@ -38,7 +38,21 @@ def close_db(exc):
 
 
 def init_db():
+    # 이전 실행의 WAL/SHM 파일이 남아있으면 메인 DB에 merge 후 삭제
+    # (Render 에페메럴 FS에서 재시작 시 -wal/-shm이 정상이전되지 않는 문제 방지)
+    import glob
+    for suffix in ("-wal", "-shm"):
+        wal_path = DB_PATH + suffix
+        if os.path.exists(wal_path):
+            try:
+                c = sqlite3.connect(DB_PATH)
+                c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                c.close()
+                os.remove(wal_path)
+            except Exception:
+                pass
     conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA journal_mode=DELETE")
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS rooms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -357,7 +371,14 @@ def check_deadline(room_id):
     if not row:
         return None
     if row["status"] == "open":
-        deadline = datetime.fromisoformat(row["deadline"])
+        try:
+            deadline = datetime.fromisoformat(row["deadline"])
+        except (ValueError, TypeError):
+            # deadline이 NULL/빈 문자열/잘못된 형식이면 마감 처리하지 않음
+            d = dict(row)
+            if d.get("deadline") is None:
+                d["deadline"] = ""
+            return d
         if datetime.now() >= deadline:
             red_count = db.execute(
                 "SELECT COUNT(*) as c FROM votes WHERE room_id=? AND vote='red'", (room_id,)
@@ -467,6 +488,12 @@ def get_user_role(room_id, nickname):
 
 
 # ==================== 페이지 라우트 ====================
+
+@app.route("/healthz")
+def healthz():
+    """Render 헬스체크 전용 — DB·템플릿 접근 없음."""
+    return {"status": "ok"}, 200
+
 
 @app.route("/")
 def index():

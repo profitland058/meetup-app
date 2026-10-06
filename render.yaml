@@ -4,7 +4,8 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r debate-room/requirements.txt gunicorn
-    startCommand: gunicorn --worker-class gthread --workers 1 --threads 4 --bind 0.0.0.0:$PORT debate-room.app:app
+    startCommand: gunicorn --worker-class gthread --workers 1 --threads 4 --timeout 60 --graceful-timeout 30 --bind 0.0.0.0:$PORT debate-room.app:app
+    healthCheckPath: /healthz
     envVars:
       - key: FLASK_DEBUG
         value: "0"
