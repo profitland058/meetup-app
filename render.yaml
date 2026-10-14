@@ -9,3 +9,11 @@ services:
     envVars:
       - key: FLASK_DEBUG
         value: "0"
+
+  - type: web
+    name: draw-guess
+    runtime: python
+    plan: free
+    buildCommand: pip install -r draw-guess/requirements.txt uvicorn[standard]
+    startCommand: uvicorn --host 0.0.0.0 --port $PORT --workers 1 draw-guess.app:app
+    healthCheckPath: /
