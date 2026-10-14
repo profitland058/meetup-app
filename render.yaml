@@ -14,7 +14,6 @@ services:
     name: draw-guess
     runtime: python
     plan: free
-    rootDir: draw-guess
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install fastapi "uvicorn[standard]" websockets
+    startCommand: uvicorn draw-guess.app:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /
