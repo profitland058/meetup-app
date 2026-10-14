@@ -14,6 +14,7 @@ services:
     name: draw-guess
     runtime: python
     plan: free
-    buildCommand: pip install -r draw-guess/requirements.txt uvicorn[standard]
-    startCommand: uvicorn --host 0.0.0.0 --port $PORT --workers 1 draw-guess.app:app
+    rootDir: draw-guess
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /
