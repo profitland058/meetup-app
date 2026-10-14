@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>그림 퀴즈 - 실시간 멀티플레이</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .screen { display: none; width: 100%; max-width: 480px; padding: 24px; }
+  .screen.active { display: block; }
+  h1 { text-align: center; font-size: 28px; margin-bottom: 24px; color: #ffd700; }
+  label { display: block; margin-bottom: 6px; font-size: 14px; color: #aaa; }
+  input[type=text] { width: 100%; padding: 12px; border: 2px solid #333; border-radius: 8px; background: #16213e; color: #fff; font-size: 16px; margin-bottom: 16px; outline: none; }
+  input[type=text]:focus { border-color: #ffd700; }
+  button { width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: opacity .2s; }
+  button:hover { opacity: .85; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-primary { background: #ffd700; color: #1a1a2e; }
+  .btn-secondary { background: #4a4e69; color: #fff; margin-top: 10px; }
+  .divider { text-align: center; color: #555; margin: 16px 0; }
+  .error-msg { color: #ff6b6b; font-size: 14px; text-align: center; margin-top: 10px; min-height: 20px; }
+  /* 로비 */
+  .lobby-header { text-align: center; margin-bottom: 20px; }
+  .room-code { font-size: 48px; letter-spacing: 8px; color: #ffd700; font-weight: bold; cursor: pointer; }
+  .copy-hint { font-size: 12px; color: #888; margin-top: 4px; }
+  .player-list { list-style: none; margin: 16px 0; }
+  .player-list li { padding: 10px 14px; background: #16213e; border-radius: 6px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+  .host-badge { font-size: 11px; background: #ffd700; color: #1a1a2e; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 6px; }
+  .status-bar { text-align: center; font-size: 13px; color: #888; margin-top: 12px; }
+  /* 게임 공통 상단 바 */
+  .game-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .round-info { font-size: 14px; color: #ffd700; font-weight: bold; }
+  .timer { font-size: 22px; font-weight: bold; color: #ff6b6b; min-width: 56px; text-align: right; }
+  .drawer-banner { text-align: center; background: #16213e; border: 2px solid #ffd700; border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 15px; }
+  .drawer-banner b { color: #ffd700; }
+  /* 드로잉 영역 */
+  .canvas-wrap { position: relative; background: #fff; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+  #board { display: block; width: 100%; touch-action: none; cursor: crosshair; }
+  .word-tag { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,.75); color: #ffd700; padding: 4px 10px; border-radius: 6px; font-size: 14px; font-weight: bold; }
+  .toolbar { display: flex; gap: 6px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+  .swatch.sel { border-color: #ffd700; transform: scale(1.15); }
+  .size-btn { padding: 6px 10px; border-radius: 6px; background: #16213e; border: 2px solid #333; color: #fff; cursor: pointer; font-size: 12px; }
+  .size-btn.sel { border-color: #ffd700; }
+  .clear-btn { padding: 6px 12px; border-radius: 6px; background: #4a4e69; border: none; color: #fff; cursor: pointer; font-size: 12px; margin-left: auto; }
+  /* 채팅 */
+  .chat-box { background: #16213e; border-radius: 8px; height: 140px; overflow-y: auto; padding: 8px 10px; margin-bottom: 10px; font-size: 14px; }
+  .chat-line { margin-bottom: 4px; word-break: break-word; }
+  .chat-line .who { color: #ffd700; font-weight: bold; }
+  .chat-line.correct .txt { color: #6bff8f; font-weight: bold; }
+  .chat-input-row { display: flex; gap: 8px; }
+  .chat-input-row input { flex: 1; margin-bottom: 0; }
+  .chat-input-row button { width: auto; padding: 0 18px; }
+  /* 점수판 */
+  .score-panel { background: #16213e; border-radius: 8px; padding: 10px 12px; margin-top: 12px; }
+  .score-panel h3 { font-size: 13px; color: #aaa; margin-bottom: 8px; }
+  .score-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; border-bottom: 1px solid #222; }
+  .score-row:last-child { border-bottom: none; }
+  .score-row.me .nm { color: #ffd700; }
+  .score-row .pts { color: #6bff8f; font-weight: bold; }
+  /* 준비 오버레이 */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.85); display: none; align-items: center; justify-content: center; z-index: 50; flex-direction: column; text-align: center; }
+  .overlay.show { display: flex; }
+  .overlay .big { font-size: 40px; color: #ffd700; font-weight: bold; margin-bottom: 12px; }
+  .overlay .sub { font-size: 18px; color: #ccc; }
+  .overlay .count { font-size: 72px; color: #ff6b6b; font-weight: bold; margin-top: 16px; }
+  /* 라운드 종료 배너 */
+  #revealPopup .big { color: #fff; font-size: 24px; letter-spacing: 1px; margin-bottom: 18px; }
+  #revealPopup .word-box {
+    display: inline-block;
+    padding: 16px 34px;
+    margin-bottom: 22px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(107,255,143,.18), rgba(107,255,143,.05));
+    border: 2px solid #6bff8f;
+    box-shadow: 0 0 24px rgba(107,255,143,.35);
+  }
+  #revealPopup .word-box span {
+    font-size: 44px;
+    font-weight: 800;
+    color: #6bff8f;
+    text-shadow: 0 0 14px rgba(107,255,143,.6);
+  }
+  #revealPopup .count { color: #ffd700; }
+  #finishPopup .word-box {
+    display: inline-block;
+    padding: 16px 34px;
+    margin-bottom: 22px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(107,255,143,.18), rgba(107,255,143,.05));
+    border: 2px solid #6bff8f;
+    box-shadow: 0 0 24px rgba(107,255,143,.35);
+  }
+  #finishPopup .word-box span {
+    font-size: 44px;
+    font-weight: 800;
+    color: #6bff8f;
+    text-shadow: 0 0 14px rgba(107,255,143,.6);
+  }
+  #finishPopup .count { color: #ffd700; }
+  /* 최종 결과 */
+  .result-title { text-align: center; font-size: 26px; color: #ffd700; margin-bottom: 20px; }
+  .rank-list { list-style: none; }
+  .rank-list li { display: flex; align-items: center; gap: 10px; background: #16213e; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
+  .rank-list li.first { border: 2px solid #ffd700; }
+  .rank-list li.tie-group { position: relative; }
+  .rank-list li.tie-group::after { content: ''; position: absolute; right: -8px; top: 50%; transform: translateY(-50%); width: 4px; height: 60%; background: #ffd700; border-radius: 2px; }
+  .tie-badge { display: inline-block; background: #ffd700; color: #1a1a2e; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
+  .rank-num { font-size: 20px; font-weight: bold; width: 30px; text-align: center; }
+  .rank-nm { flex: 1; font-size: 16px; }
+  .rank-score { font-size: 18px; font-weight: bold; color: #6bff8f; }
+  .medal { font-size: 20px; }
+  /* 출제(퀴즈 입력) 카드 — 이번 라운드 그리는 사람이 직접 제시어를 입력 */
+  .quiz-card { background: #16213e; border: 2px solid #ffd700; border-radius: 8px; padding: 14px; margin-bottom: 12px; text-align: center; }
+  .quiz-card .lbl { font-size: 16px; color: #ffd700; font-weight: bold; margin-bottom: 6px; }
+  .quiz-card .hint { font-size: 13px; color: #aaa; margin-bottom: 10px; }
+  .quiz-input-row { display: flex; gap: 8px; }
+  .quiz-input-row input { flex: 1; margin-bottom: 0; text-align: center; letter-spacing: 2px; }
+  .quiz-input-row button { width: auto; padding: 0 18px; }
+  .quiz-error { color: #ff6b6b; font-size: 13px; margin-top: 6px; min-height: 18px; }
+  .quiz-wait { text-align: center; background: #16213e; border: 2px dashed #4a4e69; border-radius: 8px; padding: 12px; margin-bottom: 12px; font-size: 15px; color: #ccc; }
+  .quiz-wait span { color: #ffd700; font-weight: bold; }
+  /* 라운드 수 선택 카드 */
+  .rounds-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .round-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 8px 12px; background: #16213e; border: 2px solid #333; border-radius: 12px; cursor: pointer; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; user-select: none; }
+  .round-card:hover { transform: translateY(-2px); border-color: #5a5f85; }
+  .round-card.sel { border-color: #ffd700; box-shadow: 0 0 0 3px rgba(255,215,0,.15), 0 4px 14px rgba(255,215,0,.18); }
+  .round-card .rc-num { font-size: 30px; font-weight: 800; line-height: 1; color: #eee; }
+  .round-card.sel .rc-num { color: #ffd700; }
+  .round-card .rc-lbl { font-size: 12px; color: #9aa0b5; }
+  .round-card .rc-check { position: absolute; top: 8px; right: 8px; width: 18px; height: 18px; border-radius: 50%; background: #ffd700; color: #1a1a2e; font-size: 12px; font-weight: bold; display: none; align-items: center; justify-content: center; }
+  .round-card.sel .rc-check { display: flex; }
+  /* 제한 시간 드롭다운 */
+  .dropdown-wrap { position: relative; margin-bottom: 16px; }
+  .dropdown-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 13px 14px; border: 2px solid #333; border-radius: 10px; background: #16213e; color: #fff; font-size: 15px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+  .dropdown-btn:hover { border-color: #555; }
+  .dropdown-wrap.open .dropdown-btn { border-color: #ffd700; box-shadow: 0 0 0 3px rgba(255,215,0,.15); }
+  .dropdown-btn .dd-arrow { width: 10px; height: 10px; border-right: 2px solid #aaa; border-bottom: 2px solid #aaa; transform: rotate(45deg) translateY(-2px); transition: transform .2s; flex-shrink: 0; margin-left: 10px; }
+  .dropdown-wrap.open .dd-arrow { transform: rotate(-135deg) translateY(-2px); }
+  .dropdown-menu { position: absolute; left: 0; right: 0; top: calc(100% + 6px); background: #1a1a2e; border: 2px solid #ffd700; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.5); z-index: 100; max-height: 280px; overflow-y: auto; opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .15s, transform .15s, visibility .15s; }
+  .dropdown-wrap.open .dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
+  .dropdown-item { padding: 11px 14px; font-size: 15px; color: #ccc; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background .1s, color .1s; }
+  .dropdown-item:hover { background: #16213e; color: #fff; }
+  .dropdown-item.sel { color: #ffd700; font-weight: bold; }
+  .dropdown-item.sel::after { content: "✓"; }
+</style>
+</head>
+<body>
+
+<!-- 1단계: 닉네임 + 방 만들기 / 코드로 입장 -->
+<div id="screen-join" class="screen active">
+  <h1>🎨 그림 퀴즈</h1>
+  <label for="nickname">닉네임</label>
+  <input type="text" id="nickname" maxlength="12" placeholder="이름을 입력하세요 (최대 12자)">
+  <label>라운드 수</label>
+  <div class="rounds-grid" id="roundsGrid">
+    <div class="round-card sel" data-rounds="1" onclick="selectRounds(this)">
+      <span class="rc-check">✓</span>
+      <span class="rc-num">1</span>
+      <span class="rc-lbl">한 번씩</span>
+    </div>
+    <div class="round-card" data-rounds="2" onclick="selectRounds(this)">
+      <span class="rc-check">✓</span>
+      <span class="rc-num">2</span>
+      <span class="rc-lbl">두 번씩</span>
+    </div>
+    <div class="round-card" data-rounds="3" onclick="selectRounds(this)">
+      <span class="rc-check">✓</span>
+      <span class="rc-num">3</span>
+      <span class="rc-lbl">세 번씩</span>
+    </div>
+  </div>
+  <label>제한 시간</label>
+  <div class="dropdown-wrap" id="guessTimeDropdown">
+    <div class="dropdown-btn" onclick="toggleGuessTimeDD()">
+      <span id="guessTimeLabel">60초</span>
+      <span class="dd-arrow"></span>
+    </div>
+    <div class="dropdown-menu" id="guessTimeMenu">
+      <div class="dropdown-item" data-val="15" onclick="pickGuessTime(this)">15초</div>
+      <div class="dropdown-item" data-val="30" onclick="pickGuessTime(this)">30초</div>
+      <div class="dropdown-item sel" data-val="60" onclick="pickGuessTime(this)">60초</div>
+      <div class="dropdown-item" data-val="90" onclick="pickGuessTime(this)">90초</div>
+      <div class="dropdown-item" data-val="120" onclick="pickGuessTime(this)">120초</div>
+      <div class="dropdown-item" data-val="180" onclick="pickGuessTime(this)">180초</div>
+      <div class="dropdown-item" data-val="300" onclick="pickGuessTime(this)">300초</div>
+      <div class="dropdown-item" data-val="0" onclick="pickGuessTime(this)">제한 없음</div>
+    </div>
+  </div>
+  <button class="btn-primary" onclick="createRoom()">방 만들기</button>
+  <div class="divider">또는</div>
+  <label for="roomCodeInput">방 코드</label>
+  <input type="text" id="roomCodeInput" maxlength="6" placeholder="ABC123" style="text-transform:uppercase; text-align:center; letter-spacing:4px;">
+  <button class="btn-secondary" onclick="joinRoom()">코드로 입장</button>
+  <div class="error-msg" id="joinError"></div>
+</div>
+
+<!-- 2단계: 로비 -->
+<div id="screen-lobby" class="screen">
+  <div class="lobby-header">
+    <div style="font-size:14px; color:#aaa;">방 코드</div>
+    <div class="room-code" id="lobbyCode">------</div>
+    <div class="copy-hint" id="copyHint">클릭하여 복사</div>
+  </div>
+  <ul class="player-list" id="playerList"></ul>
+  <div class="lobby-footer">
+    <button class="btn-primary" id="startBtn" onclick="startGame()">게임 시작</button>
+    <button class="btn-secondary" onclick="leaveRoom()">나가기</button>
+  </div>
+  <div class="status-bar" id="lobbyStatus">최소 2명부터 시작할 수 있습니다</div>
+</div>
+
+<!-- 3단계: 게임 -->
+<div id="screen-game" class="screen">
+  <div class="game-topbar">
+    <span class="round-info" id="roundInfo">라운드 1/5</span>
+    <span class="timer" id="timer">--</span>
+  </div>
+  <div class="drawer-banner" id="drawerBanner"></div>
+
+  <!-- 출제(퀴즈 입력) 단계: 이번 라운드 그리는 사람이 직접 제시어 입력 -->
+  <div class="quiz-card" id="quizCard" style="display:none;">
+    <div class="lbl">✏️ 이번 라운드의 제시어를 정해 주세요</div>
+    <div class="hint">입력한 단어 그대로 그림을 그리고, 다른 사람들이 채팅으로 맞춰보세요 (1~20자)</div>
+    <div class="quiz-input-row">
+      <input type="text" id="quizInput" maxlength="20" placeholder="그리실 제시어를 입력하세요...">
+      <button class="btn-primary" onclick="submitWord()">그리기 시작</button>
+    </div>
+    <div class="quiz-error" id="quizError"></div>
+  </div>
+
+  <!-- 대기 중 (나 != drawer일 때 표시) -->
+  <div class="quiz-wait" id="quizWait" style="display:none;">
+    <span id="quizWaitName"></span> 님이 문제를 내는 중이에요
+  </div>
+
+  <!-- 제시어 (드로어만 보임) -->
+  <div class="word-tag" id="wordTag" style="display:none;"></div>
+
+  <!-- 드로잉 -->
+  <div class="canvas-wrap">
+    <canvas id="board" width="432" height="320"></canvas>
+  </div>
+  <div class="toolbar" id="toolbar" style="display:none;">
+    <div class="swatch sel" data-c="#000000" style="background:#000"></div>
+    <div class="swatch" data-c="#e63946" style="background:#e63946"></div>
+    <div class="swatch" data-c="#f4a261" style="background:#f4a261"></div>
+    <div class="swatch" data-c="#ffd700" style="background:#ffd700"></div>
+    <div class="swatch" data-c="#2a9d8f" style="background:#2a9d8f"></div>
+    <div class="swatch" data-c="#457b9d" style="background:#457b9d"></div>
+    <div class="swatch" data-c="#9b5de5" style="background:#9b5de5"></div>
+    <div class="size-btn sel" data-s="3">얇음</div>
+    <div class="size-btn" data-s="6">중간</div>
+    <div class="size-btn" data-s="12">굵음</div>
+    <button class="clear-btn" onclick="clearBoard()">지우기</button>
+  </div>
+
+  <!-- 정답 공개 팝업 (라운드 종료, 10초 카운트다운) -->
+  <div class="overlay" id="revealPopup">
+    <div class="big" id="revealLabel">정답은?</div>
+    <div class="sub" id="revealMsg" style="margin-bottom:16px;"></div>
+<div class="word-box"><span id="revealWord"></span></div>
+    <div class="sub" id="revealSub">다음 라운드가 시작됩니다...</div>
+    <div class="sub" id="tiebreakNotice" style="display:none; color:#ffd700; margin-top:12px; font-weight:bold;"></div>
+    <div class="count" id="revealCount">10</div>
+  </div>
+
+  <!-- 채팅 -->
+  <div class="chat-box" id="chatBox"></div>
+  <div class="chat-input-row">
+    <input type="text" id="chatInput" maxlength="100" placeholder="정답을 입력하세요...">
+    <button class="btn-primary" onclick="sendChat()">보내기</button>
+  </div>
+
+  <!-- 점수판 -->
+  <div class="score-panel">
+    <h3>점수판</h3>
+    <div id="scoreList"></div>
+  </div>
+</div>
+
+<!-- 4단계: 최종 결과 -->
+<div id="screen-result" class="screen">
+  <div class="result-title">🏆 최종 결과</div>
+  <ul class="rank-list" id="rankList"></ul>
+  <button class="btn-primary" style="margin-top:16px;" onclick="backToLobby()">로비로 돌아가기</button>
+</div>
+
+<!-- 게임 종료 팝업 (정답 공개 + 10초 카운트다운 → 결과 자동 전환) -->
+<div class="overlay" id="finishPopup">
+  <div class="big">🏁 모든 라운드가 종료되었어요</div>
+  <div class="word-box"><span id="finishWord"></span></div>
+  <div class="sub" id="finishNotice" style="margin-top:16px;">잠시 후 최종 결과가 공개됩니다.</div>
+  <div class="count" id="finishCount">10</div>
+</div>
+
+<!-- 준비 오버레이 -->
+<div class="overlay" id="prepOverlay">
+  <div class="big" id="prepBig">준비!</div>
+  <div class="sub" id="prepSub"></div>
+  <div class="count" id="prepCount"></div>
+</div>
+
+<!-- 출제 시간 초과 알림 팝업 -->
+<div class="overlay" id="timeoutPopup">
+  <div class="big" style="font-size:48px;">⏰ 시간 초과</div>
+  <div class="sub" style="font-size:18px; max-width:340px; text-align:center;">
+    출제자가 문제를 내지 않아<br>이번 라운드는 무효가 되었어요.<br>잠시 후 다음 라운드가 시작됩니다.
+  </div>
+  <div class="count" id="timeoutCount">10</div>
+</div>
+
+<script>
+let ws = null;
+let myPid = null;
+let roomCode = "";
+let isHost = false;
+let curState = "lobby";
+let timeLeft = 0;
+let round = 1, totalRounds = 5;
+let players = [];
+let drawerPid = "";
+let myWord = "";
+let drawing = false;
+let penColor = "#000000";
+let penSize = 3;
+let lastPt = null;
+
+const $ = id => document.getElementById(id);
+const canvas = $("board");
+const ctx = canvas.getContext("2d");
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(name).classList.add('active');
+}
+function setError(msg) { $('joinError').textContent = msg || ''; }
+function getNickname() { return $('nickname').value.trim(); }
+
+/* ── 연결 ─────────────────────────────── */
+function connect(code, action) {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/${code}`);
+  const payload = { action, nickname: getNickname() };
+  if (action === 'create') {
+    const sel = document.querySelector('.round-card.sel');
+    payload.rounds = sel ? parseInt(sel.dataset.rounds, 10) : 1;
+    const selItem = document.querySelector('#guessTimeMenu .dropdown-item.sel');
+    payload.guess_time = selItem ? parseInt(selItem.dataset.val, 10) : 60;
+  }
+  ws.onopen = () => ws.send(JSON.stringify(payload));
+  ws.onmessage = e => handleMsg(JSON.parse(e.data));
+  ws.onerror = () => { setError('서버 연결에 실패했습니다'); cleanup(); };
+  ws.onclose = () => cleanup();
+}
+function cleanup() {
+  if (ws) { try { ws.close(); } catch(_) {} ws = null; }
+  myPid = null; roomCode = ""; isHost = false; curState = "lobby";
+  hidePrep();
+  showScreen('screen-join');
+}
+function selectRounds(el) {
+  document.querySelectorAll('.round-card').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+}
+/* 제한 시간 드롭다운 */
+const GUESS_TIME_LABELS = { '15':'15초', '30':'30초', '60':'60초', '90':'90초', '120':'120초', '180':'180초', '300':'300초', '0':'제한 없음' };
+function toggleGuessTimeDD() {
+  const wrap = $('guessTimeDropdown');
+  if (wrap.classList.contains('open')) { closeGuessTimeDD(); return; }
+  wrap.classList.add('open');
+}
+function closeGuessTimeDD() { $('guessTimeDropdown').classList.remove('open'); }
+function pickGuessTime(el) {
+  document.querySelectorAll('#guessTimeMenu .dropdown-item').forEach(i => i.classList.remove('sel'));
+  el.classList.add('sel');
+  $('guessTimeLabel').textContent = GUESS_TIME_LABELS[el.dataset.val] || el.textContent;
+  closeGuessTimeDD();
+}
+document.addEventListener('click', e => {
+  const wrap = $('guessTimeDropdown');
+  if (wrap && wrap.classList.contains('open') && !wrap.contains(e.target)) closeGuessTimeDD();
+});
+function createRoom() {
+  const nick = getNickname();
+  if (!nick) { setError('닉네임을 입력하세요'); return; }
+  setError('');
+  connect(Math.random().toString(36).substring(2, 8).toUpperCase(), 'create');
+}
+function joinRoom() {
+  const nick = getNickname();
+  const code = $('roomCodeInput').value.trim().toUpperCase();
+  if (!nick) { setError('닉네임을 입력하세요'); return; }
+  if (!code) { setError('방 코드를 입력하세요'); return; }
+  setError('');
+  connect(code, 'join');
+}
+function leaveRoom() {
+  if (ws) { try { ws.send(JSON.stringify({action:'leave'})); } catch(_){} }
+  cleanup();
+}
+function startGame() { if (ws) ws.send(JSON.stringify({ action: 'start_game' })); }
+function backToLobby() {
+  // 다시 로비 상태로 표시 (서버가 다음 시작 대기)
+  curState = "lobby";
+  resetCanvas();
+  showScreen('screen-lobby');
+}
+
+/* ── 메시지 처리 ───────────────────────── */
+function handleMsg(msg) {
+  switch (msg.type) {
+    case 'joined':
+      myPid = msg.pid; roomCode = msg.code; isHost = !!msg.isHost;
+      showScreen('screen-lobby');
+      break;
+    case 'state':
+      if (msg.state === "quiz") { renderQuiz(msg); return; }
+      hideQuizUI();
+      document.querySelector('.canvas-wrap').style.display = '';
+      $('toolbar').style.display = (myPid === msg.drawerPid) ? 'flex' : 'none';
+      $('chatBox').style.display = '';
+      document.querySelector('.chat-input-row').style.display = '';
+      // 같은 상태가 다시 오면(예: 참가자 입장·출제 재시도 브로드캐스트) 캔버스를 지우지 않는다.
+      const sameActiveState = !!curState && curState === msg.state &&
+        (msg.state === "prep" || msg.state === "drawing");
+      renderState(msg, { skipInit: sameActiveState });
+      break;
+    case 'error':
+      if (curState === "lobby") setError(msg.message);
+      else alert(msg.message);
+      break;
+    case 'tick':
+      // timeout 팝업이 떠 있으면 해당 tick은 팝업 카운트다운에만 사용하고,
+      // 화면 상단 타이머(quiz/drawing/prep) 갱신은 건너뛴다.
+      // 팝업이 안 떠 있으면 원래대로 화면 타이머만 갱신한다.
+      if (timeoutActive) {
+        onServerTick(msg.timeLeft);
+      } else {
+        setTimer(msg.timeLeft);
+      }
+      break;
+    case 'word_reveal': myWord = msg.word; updateWordTag(); break;
+    case 'chat': addChat(msg.nickname, msg.text, false); break;
+    case 'correct': addChat(msg.nickname, "(정답!) +" + msg.score + "점", true); break;
+    case 'draw': applyRemoteDraw(msg); break;
+  }
+}
+
+function renderState(msg, opts = {}) {
+  const skipInit = !!opts.skipInit;   // 같은 상태 재전송일 때 캔버스 초기화만 건너뜀
+  curState = msg.state;
+  round = msg.currentRound || 1;
+  totalRounds = msg.totalRounds || 5;
+  players = msg.players || [];
+  drawerPid = msg.drawerPid || "";
+  if (typeof msg.timeLeft === "number") setTimer(msg.timeLeft);
+
+  if (msg.state === "lobby") {
+    showScreen('screen-lobby');
+    renderLobby(msg);
+  } else if (msg.state === "game_over") {
+    myWord = "";
+    hidePrep();
+    hideReveal();
+    hideTimeoutPopup();
+    resetCanvas();
+    const chatLog = $('chatLog');
+    if (chatLog) chatLog.innerHTML = '';
+    hideFinishPopup();
+    showFinishPopup(msg);
+  } else {
+    // prep / drawing / round_end → 게임 화면
+    // 라운드 전환 때마다 전 오버레이 정리 — reveal/timeout/prep 중 하나가
+    // tick·race로 닫히지 못하면 다음 라운드에 그대로 남아 타이머를 삼킨다.
+    hidePrep();
+    hideReveal();
+    hideTimeoutPopup();
+    showScreen('screen-game');
+    $('roundInfo').textContent = `라운드 ${round}/${totalRounds}`;
+    renderScore();
+
+    if (msg.state === "prep") {
+      if (!skipInit) {
+        myWord = "";
+        resetCanvas();
+      }
+      showPrep(round, msg.timeLeft);
+    } else if (msg.state === "drawing") {
+      myWord = "";  // 이전 라운드/게임의 잔존 제시어 제거 — word_reveal로 새로 도착할 때까지 비워둠
+      resetCanvas();  // 다음 라운드 진입 시 캔버스 초기화 — 계획 요구
+      setupDrawingUI();
+      if (myPid === drawerPid && !myWord) { /* word_reveal로 도착 */ }
+      updateWordTag();
+    } else if (msg.state === "round_end") {
+      disableDrawing();
+      if (msg.skippedReason === "timeout_last") {
+        // 마지막 라운드 출제 시간 초과 — timeout 팝업 없이 즉시 game_over로 전환된다.
+        hideReveal();
+      } else if (msg.skippedReason === "timeout") {
+        // 출제 시간 초과로 패스한 라운드 — 정답 공개 팝업 없이 무효 팝업만 표시
+        hideReveal();
+        showTimeoutPopup();
+      } else {
+        showReveal(msg.word || "", msg.correctAnswered || [], !!msg.tiebreak);
+      }
+    }
+  }
+}
+
+function renderLobby(state) {
+  $('lobbyCode').textContent = state.code;
+  const list = $('playerList');
+  list.innerHTML = '';
+  const connectedCount = state.players.filter(p => p.connected).length;
+  state.players.forEach(p => {
+    const li = document.createElement('li');
+    const badge = (p.pid === firstPid()) ? '<span class="host-badge">호스트</span>' : '';
+    li.innerHTML = `<span>${escapeHtml(p.nickname)}${!p.connected ? ' <small style="color:#888">(오프라인)</small>' : ''}${badge}</span>`;
+    list.appendChild(li);
+  });
+  const startBtn = $('startBtn');
+  const statusEl = $('lobbyStatus');
+  if (isHost) {
+    statusEl.textContent = connectedCount >= 2 ? '시작할 준비가 되었습니다!' : `현재 ${connectedCount}명 / 최소 2명 필요`;
+    startBtn.disabled = connectedCount < 2;
+    startBtn.style.opacity = connectedCount < 2 ? '.5' : '1';
+  } else {
+    statusEl.textContent = `호스트가 게임을 시작하면 자동으로 진행됩니다 (${connectedCount}명)`;
+    startBtn.style.display = 'none';
+  }
+}
+function firstPid() { return players.length ? players[0].pid : ""; }
+
+function setTimer(t) {
+  timeLeft = t;
+  $('timer').textContent = t > 0 ? t + 's' : '--';
+  if (curState === "prep") $('prepCount').textContent = t;
+}
+
+/* ── 준비 오버레이 ─────────────────────── */
+function showPrep(rnd, t) {
+  const iAmDrawer = (myPid === drawerPid);
+  $('prepBig').textContent = `라운드 ${rnd}`;
+  $('prepSub').textContent = iAmDrawer ? "당신이 그리는 차례입니다!" : `${players.find(p=>p.pid===drawerPid)?.nickname || '드로어'}님이 그립니다`;
+  $('prepCount').textContent = t;
+  $('prepOverlay').classList.add('show');
+}
+function hidePrep() { $('prepOverlay').classList.remove('show'); }
+
+/* ── 출제 시간 초과 팝업 ─────────────────── */
+// 서버 tick에 동기화: 자체 setInterval 대신 서버가 보내는 tick 메시지로
+// 카운트를 갱신한다. 모든 플레이어가 동일한 서버 메시지에 반응하므로
+// 화면 전환 시점이 일치한다.
+let timeoutActive = false;
+function showTimeoutPopup() {
+  const el = $('timeoutPopup');
+  const countEl = $('timeoutCount');
+  timeoutActive = true;
+  countEl.textContent = 10;
+  el.classList.add('show');
+}
+function hideTimeoutPopup() {
+  timeoutActive = false;
+  $('timeoutPopup').classList.remove('show');
+}
+function onServerTick(t) {
+  // timeout 팝업이 떠 있는 동안에만 처리
+  if (!timeoutActive) return;
+  $('timeoutCount').textContent = t > 0 ? t : '';
+  if (t <= 0) hideTimeoutPopup();
+}
+
+/* ── 드로잉 UI ─────────────────────────── */
+function setupDrawingUI() {
+  const iAmDrawer = (myPid === drawerPid);
+  const banner = $('drawerBanner');
+  if (iAmDrawer) {
+    const drawerNick = players.find(p=>p.pid===drawerPid)?.nickname || '드로어';
+    banner.innerHTML = `✏️ <b>${escapeHtml(drawerNick)}</b> 님이 ${myWord ? escapeHtml(myWord) + '을(를)' : ''} 그리는 중이에요.`;
+    banner.style.borderColor = '#ffd700';
+    $('toolbar').style.display = 'flex';
+    enableDrawing();
+  } else {
+    const drawerNick = players.find(p=>p.pid===drawerPid)?.nickname || '드로어';
+    banner.innerHTML = `✏️ <b>${escapeHtml(drawerNick)}</b> 님이 ${myWord ? escapeHtml(myWord) + '를' : ''} 그리고 있어요`;
+    banner.style.borderColor = '#457b9d';
+    $('toolbar').style.display = 'none';
+    disableDrawing();
+  }
+  updateWordTag();
+}
+function updateWordTag() {
+  const tag = $('wordTag');
+  if (myPid === drawerPid && myWord) {
+    tag.textContent = "제시어: " + myWord;
+    tag.style.display = 'block';
+  } else {
+    tag.style.display = 'none';
+  }
+}
+function disableDrawing() { canvas.style.cursor = 'default'; }
+function enableDrawing() { canvas.style.cursor = 'crosshair'; }
+
+/* ── 정답 공개 팝업 (10초 카운트다운) ─────── */
+let revealTimer = null;
+function showReveal(word, correctAnswered, isTiebreak) {
+  const names = (correctAnswered || []).map(c => {
+    const p = players.find(pl => pl.pid === c.pid);
+    return p ? p.nickname : '';
+  }).filter(Boolean);
+  $('revealMsg').textContent = names.length
+    ? `${names[0]} 님이 정답을 맞혔어요!`
+    : '아무도 맞히지 못했어요!';
+  const el = $('revealPopup');
+  const countEl = $('revealCount');
+  // 출제자가 시간 안에 문제를 내지 못한 경우(제시어 없음) — 녹색 사각형 자체를 숨긴다.
+  const wordEl = $('revealWord');
+  if (word) {
+    wordEl.textContent = word;
+    wordEl.style.display = '';
+  } else {
+    wordEl.style.display = 'none';
+  }
+  // 결승전 안내 문구 — 동점자가 생겨서 잠시 후에 결승전이 시작됨을 알려준다.
+  const notice = $('tiebreakNotice');
+  if (isTiebreak) {
+    notice.textContent = '동점자가 생겨서 잠시 후에 결승전이 시작됩니다! 출제자는 관전자 중에서 랜덤으로 결정돼요.';
+    notice.style.display = 'block';
+  } else {
+    notice.style.display = 'none';
+  }
+  let remaining = 10;
+  countEl.textContent = remaining;
+  el.classList.add('show');
+  if (revealTimer) clearInterval(revealTimer);
+  revealTimer = setInterval(() => {
+    remaining -= 1;
+    if (remaining <= 0) {
+      clearInterval(revealTimer);
+      revealTimer = null;
+      el.classList.remove('show');
+    } else {
+      countEl.textContent = remaining;
+    }
+  }, 1000);
+}
+function hideReveal() {
+  if (revealTimer) { clearInterval(revealTimer); revealTimer = null; }
+  $('revealPopup').classList.remove('show');
+}
+/* ── 게임 종료 팝업 (정답 공개 + 10초 카운트다운 → 결과 자동 전환) ─────── */
+let _finishMsg = null;
+let _finishTimer = null;
+function showFinishPopup(msg) {
+  _finishMsg = msg;
+  // 출제자가 시간 안에 문제를 내지 못한 경우(제시어 없음) — 녹색 사각형 자체를 숨긴다.
+  const fwordEl = $('finishWord');
+  if (msg.word) {
+    fwordEl.textContent = msg.word;
+    fwordEl.style.display = '';
+  } else {
+    fwordEl.style.display = 'none';
+  }
+  const countEl = $('finishCount');
+  let remaining = 10;
+  countEl.textContent = remaining;
+  $('finishPopup').classList.add('show');
+  if (_finishTimer) clearInterval(_finishTimer);
+  _finishTimer = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(_finishTimer);
+      _finishTimer = null;
+      hideFinishPopup();
+      if (_finishMsg) showResult(_finishMsg);
+    } else {
+      countEl.textContent = remaining;
+    }
+  }, 1000);
+}
+function hideFinishPopup() {
+  if (_finishTimer) { clearInterval(_finishTimer); _finishTimer = null; }
+  $('finishPopup').classList.remove('show');
+}
+/* ── 출제(퀴즈 입력) UI — 이번 라운드 그리는 사람이 직접 제시어를 입력 ── */
+function renderQuiz(msg) {
+  curState = "quiz";
+  round = msg.currentRound || 1;
+  totalRounds = msg.totalRounds || 5;
+  players = msg.players || [];
+  drawerPid = msg.drawerPid || "";
+  showScreen('screen-game');
+  $('roundInfo').textContent = `라운드 ${round}/${totalRounds}`;
+  const drawerName = (players.find(p => p.pid === drawerPid) || {}).nickname || "?";
+  if (myPid === drawerPid) {
+    // 드로어가 직접 제시어 입력 → prep/drawing에서 그 단어로 그림을 그린다
+    $('drawerBanner').innerHTML = `⏳ <b>${escapeHtml(drawerName)}</b> 님이 문제를 내는 중이에요`;
+    $('drawerBanner').style.borderColor = '#ffd700';
+    $('quizCard').style.display = 'block';
+    document.querySelector('.canvas-wrap').style.display = 'none';
+    $('toolbar').style.display = 'none';
+    $('chatBox').style.display = 'none';
+    document.querySelector('.chat-input-row').style.display = 'none';
+    $('quizWait').style.display = 'none';
+    $('quizInput').value = '';
+    $('quizError').textContent = '';
+    setTimeout(() => $('quizInput').focus(), 100);
+  } else {
+    $('drawerBanner').innerHTML = `⏳ <b>${escapeHtml(drawerName)}</b> 님이 문제를 내는 중이에요`;
+    $('drawerBanner').style.borderColor = '#4a4e69';
+    $('quizCard').style.display = 'none';
+    $('quizWait').style.display = 'block';
+    document.querySelector('.canvas-wrap').style.display = 'none';
+    $('toolbar').style.display = 'none';
+    $('chatBox').style.display = 'none';
+    document.querySelector('.chat-input-row').style.display = 'none';
+    $('quizWaitName').textContent = drawerName;
+  }
+  renderScore();
+  setTimer(msg.timeLeft || 15);
+}
+function hideQuizUI() {
+  $('quizCard').style.display = 'none';
+  $('quizWait').style.display = 'none';
+}
+function submitWord() {
+  const inp = $('quizInput');
+  const word = inp.value.trim();
+  if (word.length < 1) { $('quizError').textContent = '제시어를 입력하세요'; return; }
+  if (ws) ws.send(JSON.stringify({ action: 'submit_word', word }));
+  inp.value = '';
+  $('quizError').textContent = '';
+  $('quizCard').style.display = 'none';   // 제출 후 대기 → prep 상태로 전환되면 자동 갱신
+}
+$('quizInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitWord(); });
+
+/* ── 채팅 ─────────────────────────────── */
+function addChat(who, text, isCorrect) {
+  const box = $('chatBox');
+  const line = document.createElement('div');
+  line.className = 'chat-line' + (isCorrect ? ' correct' : '');
+  line.innerHTML = `<span class="who">${escapeHtml(who)}</span> <span class="txt">${escapeHtml(text)}</span>`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+function sendChat() {
+  const inp = $('chatInput');
+  const text = inp.value.trim();
+  if (!text) return;
+  if (ws) ws.send(JSON.stringify({ action: 'chat', text }));
+  inp.value = '';
+}
+
+/* ── 점수판 ────────────────────────────── */
+function renderScore() {
+  const el = $('scoreList');
+  el.innerHTML = '';
+  const sorted = [...players].sort((a,b) => b.score - a.score);
+  sorted.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'score-row' + (p.pid === myPid ? ' me' : '');
+    row.innerHTML = `<span class="nm">${escapeHtml(p.nickname)}${p.pid===myPid?' (나)':''}</span><span class="pts">${p.score}점</span>`;
+    el.appendChild(row);
+  });
+}
+
+/* ── 최종 결과 ─────────────────────────── */
+function showResult(msg) {
+  const list = $('rankList');
+  list.innerHTML = '';
+  const medals = ['🥇','🥈','🥉'];
+  const sorted = [...(msg.players||[])].sort((a,b) => b.score - a.score);
+
+  // 동점자 그룹핑: 같은 점수의 플레이어들을 묶는다.
+  const groups = [];
+  sorted.forEach((p, i) => {
+    const lastGroup = groups[groups.length - 1];
+    if (lastGroup && lastGroup.score === p.score) {
+      lastGroup.members.push({ player: p, index: i });
+    } else {
+      groups.push({ score: p.score, members: [{ player: p, index: i }] });
+    }
+  });
+
+  let rank = 1;
+  groups.forEach((g, gi) => {
+    const isTie = g.members.length > 1;
+    const medal = medals[gi] || '';
+    g.members.forEach((m, mi) => {
+      const p = m.player;
+      const li = document.createElement('li');
+      if (gi === 0) li.classList.add('first');
+      if (isTie) li.classList.add('tie-group');
+      const rankLabel = isTie ? `${rank}위 동점` : `${rank}위`;
+      const badge = isTie ? '<span class="tie-badge">동점</span>' : '';
+      li.innerHTML = `<span class="rank-num">${rank}</span><span class="medal">${isTie ? '' : medal}</span><span class="rank-nm">${escapeHtml(p.nickname)}${p.pid===myPid?' (나)':''}${badge}</span><span class="rank-score">${p.score}점</span>`;
+      list.appendChild(li);
+    });
+    // 다음 랭크는 동점 인원만큼 건너뛴다 (예: 2명이 1위 동점 → 다음은 3위)
+    rank += g.members.length;
+  });
+  showScreen('screen-result');
+}
+
+/* ── 캔버스 드로잉 ─────────────────────── */
+function resetCanvas() {
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  lastPt = null;
+}
+function clearBoard() {
+  resetCanvas();
+  if (ws && myPid === drawerPid) ws.send(JSON.stringify({ action: 'draw', clear: true, points: [], color: penColor, size: penSize }));
+}
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const cx = (e.touches ? e.touches[0].clientX : e.clientX);
+  const cy = (e.touches ? e.touches[0].clientY : e.clientY);
+  return { x: (cx - r.left) * (canvas.width / r.width), y: (cy - r.top) * (canvas.height / r.height) };
+}
+function strokeStart(e) {
+  if (myPid !== drawerPid || curState !== "drawing") return;
+  e.preventDefault();
+  drawing = true;
+  lastPt = getPos(e);
+}
+function strokeMove(e) {
+  if (!drawing) return;
+  e.preventDefault();
+  const pt = getPos(e);
+  // 자기 캔버스에 직접 그리지 않고 서버 브로드캐스트로 갱신받는다.
+  // 드로어도 다른 참가자와 같은 경로를 지나면 state 재전송·resetCanvas가
+  // 중간에 끼었을 때 양쪽 화면이 서로 다르게 보이는 일이 사라진다.
+  if (ws) ws.send(JSON.stringify({ action: 'draw', points: [lastPt, pt], color: penColor, size: penSize }));
+  lastPt = pt;
+}
+function strokeEnd() { drawing = false; lastPt = null; }
+function drawSeg(a, b) {
+  ctx.strokeStyle = penColor;
+  ctx.lineWidth = penSize;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.stroke();
+}
+function applyRemoteDraw(msg) {
+  if (msg.clear) { resetCanvas(); return; }
+  const pts = msg.points || [];
+  if (pts.length >= 2) {
+    ctx.strokeStyle = msg.color || '#000';
+    ctx.lineWidth = msg.size || 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    ctx.lineTo(pts[1].x, pts[1].y);
+    ctx.stroke();
+  }
+}
+
+// 이벤트 바인딩
+canvas.addEventListener('mousedown', strokeStart);
+canvas.addEventListener('mousemove', strokeMove);
+window.addEventListener('mouseup', strokeEnd);
+canvas.addEventListener('touchstart', strokeStart, {passive:false});
+canvas.addEventListener('touchmove', strokeMove, {passive:false});
+canvas.addEventListener('touchend', strokeEnd);
+
+// 색상 / 두께 선택
+document.querySelectorAll('.swatch').forEach(sw => sw.addEventListener('click', () => {
+  document.querySelectorAll('.swatch').forEach(s => s.classList.remove('sel'));
+  sw.classList.add('sel');
+  penColor = sw.dataset.c;
+}));
+document.querySelectorAll('.size-btn').forEach(sb => sb.addEventListener('click', () => {
+  document.querySelectorAll('.size-btn').forEach(s => s.classList.remove('sel'));
+  sb.classList.add('sel');
+  penSize = parseInt(sb.dataset.s, 10);
+}));
+
+// 채팅 엔터
+$('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+
+// 유틸
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// 로비 초기화
+resetCanvas();
+$('lobbyCode').addEventListener('click', () => {
+  navigator.clipboard.writeText(roomCode).then(() => {
+    $('copyHint').textContent = '복사되었습니다!';
+    setTimeout(() => $('copyHint').textContent = '클릭하여 복사', 1500);
+  }).catch(() => {});
+});
+$('nickname').addEventListener('keydown', e => { if (e.key === 'Enter') createRoom(); });
+$('roomCodeInput').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
+$('roomCodeInput').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase(); });
+</script>
+</body>
+</html>
