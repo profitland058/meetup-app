@@ -1,4 +1,4 @@
-name: Deploy ticketing-sim to GitHub Pages
+name: Deploy ticketing-sim to GitHub Pages (v2)
 
 on:
   push:
