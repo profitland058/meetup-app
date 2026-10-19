@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>티켓팅 시뮬레이터</title>
+  <link rel="stylesheet" href="style.css?v=20261015a">
+</head>
+<body>
+  <!-- 상단 헤더 -->
+  <header class="app-header">
+    <h1>🎫 티켓팅 시뮬레이터</h1>
+  </header>
+
+  <main class="app-main">
+    <!-- ========== 공연장 (홈: 공연명 입력 + 시작하기 버튼) ========== -->
+    <section id="screen-concert" class="mode-screen active">
+      <div class="home-start-area" id="concert-home-area">
+        <div class="home-concert-name-row">
+          <label for="concert-name-input" class="home-concert-name-label">공연명</label>
+          <input type="text" id="concert-name-input" class="home-concert-name-input"
+                 maxlength="40" autocomplete="off" placeholder="예: BTS 콘서트">
+        </div>
+        <button class="btn-primary btn-large" id="btn-concert-start" disabled>시작하기</button>
+      </div>
+
+      <!-- 좌석 선택 상태: enterSeatSelection() 호출 시에만 표시 -->
+      <div class="seat-select-area hidden" id="concert-seat-area">
+        <h2>공연장 좌석 선택</h2>
+        <div class="venue-info">
+          <p>공연명: <span class="config-val" data-key="concert.name">[수치 대기]</span></p>
+          <p>총 좌석: <span class="config-val" data-key="concert.totalSeats">[수치 대기]</span>석</p>
+          <p>가격: <span class="config-val" data-key="concert.price">[수치 대기]</span>원</p>
+        </div>
+        <div id="concert-seat-map" class="seat-map"></div>
+        <div class="sim-controls">
+          <button class="btn-secondary" id="btn-concert-reset">초기화</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 구역 상세 화면 (공연장 좌석 선택) ========== -->
+    <section id="screen-section" class="mode-screen">
+      <div class="sim-panel section-screen-panel">
+        <h2 id="section-title">구역 좌석 선택</h2>
+        <p id="section-info" class="section-info"></p>
+        <div id="section-seat-grid" class="seat-grid-concert section-grid"></div>
+        <div class="sim-controls">
+          <button class="btn-secondary" id="btn-section-back">← 전체 맵으로</button>
+        </div>
+        <!-- 우측 상단: 전체 구역표 미니맵 -->
+        <div id="section-minimap" class="section-minimap" title="다른 구역으로 이동">
+          <p class="minimap-caption">전체 구역</p>
+          <div id="minimap-grid" class="minimap-grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 보안문자(보안글자) 입력 화면 ========== -->
+    <section id="screen-captcha" class="mode-screen">
+      <div class="sim-panel captcha-panel">
+        <h2>보안 문자 확인</h2>
+        <p class="captcha-hint">계속하려면 아래 보안 문자를 그대로 입력하세요.</p>
+        <div class="captcha-box">
+          <span id="captcha-text" class="captcha-text"></span>
+          <button type="button" class="captcha-refresh" id="btn-captcha-refresh" title="바꾸기">🔄</button>
+        </div>
+        <div class="captcha-input-row">
+          <input type="text" id="captcha-input" class="captcha-input" maxlength="6" autocomplete="off" placeholder="보안 문자 입력">
+          <button class="btn-primary" id="btn-captcha-next">다음</button>
+        </div>
+        <p class="captcha-error hidden" id="captcha-error">보안 문자가 일치하지 않습니다. 다시 입력해 주세요.</p>
+      </div>
+    </section>
+
+    <!-- ========== 날짜 / 시간 선택 화면 ========== -->
+    <section id="screen-datetime" class="mode-screen">
+      <div class="sim-panel datetime-panel">
+        <h2>공연 날짜와 시간 선택</h2>
+        <p class="dt-hint">오른쪽 위의 목표 날짜/시간과 같은 버튼을 눌러 주세요.</p>
+        <div id="dt-target" class="dt-target hidden"></div>
+        <div id="dt-error" class="dt-error hidden"></div>
+        <div id="dt-day-list" class="dt-day-list"></div>
+        <div id="dt-time-list" class="dt-time-list hidden"></div>
+        <div class="sim-controls">
+          <button class="btn-secondary" id="btn-dt-back">← 뒤로</button>
+          <button class="btn-primary hidden" id="btn-dt-next">다음</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 결제 화면 (마지막 단계) ========== -->
+    <section id="screen-payment" class="mode-screen">
+      <div class="sim-panel payment-panel">
+        <h2>결제</h2>
+        <div class="payment-summary" id="payment-summary"></div>
+
+        <div class="sim-controls">
+          <button class="btn-secondary" id="btn-pay-back">← 뒤로</button>
+          <button class="btn-primary" id="btn-pay-confirm">결제하기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 결과 화면 (공용) ========== -->
+    <section id="screen-result" class="mode-screen">
+      <div class="sim-panel result-panel">
+        <h2>결과</h2>
+        <div id="result-content" class="result-content">
+          <!-- JS로 결과 채우기 -->
+        </div>
+        <div class="sim-controls">
+          <button class="btn-primary" id="btn-back-home">처음으로</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ========== 티켓팅 카운트다운 시계 (전면 오버레이) — 시작하기 클릭 전까지 hidden ========== -->
+  <div id="clock-overlay" class="clock-overlay hidden">
+    <p class="clock-label"><span id="clock-concert-name"></span> 티켓팅 오픈까지</p>
+    <div id="clock-time" class="clock-time">11:59:30</div>
+    <button class="btn-primary clock-book-btn" id="btn-clock-book">예매하기</button>
+  </div>
+
+  <!-- ========== 대기열 화면 (판매 시작 후) ========== -->
+  <div id="queue-overlay" class="queue-overlay hidden">
+    <div class="queue-box">
+      <h3>티켓팅 대기 중</h3>
+      <p class="queue-waiters">현재 대기 인원: <strong id="queue-count">0</strong>명</p>
+      <p class="queue-eta">예상 대기 시간: <span id="queue-eta">-</span></p>
+      <div class="seat-status-box">
+        <p class="seat-status-label">남은 대기 인원: <strong id="seats-remaining">-</strong> / <span id="seats-total">-</span>명</p>
+        <div class="seat-status-bar"><div id="seats-bar-fill" class="seat-status-fill"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 예매 시간 전 팝업 ========== -->
+  <div id="presale-popup" class="popup-overlay hidden">
+    <div class="popup-box">
+      <h3>아직 예매 시간이 아닙니다</h3>
+      <p>티켓팅은 <strong>12:00:00</strong>부터 시작됩니다.<br>시계가 12시를 넘으면 예매할 수 있습니다.</p>
+      <button class="btn-primary" id="btn-popup-close">확인</button>
+    </div>
+  </div>
+
+  <!-- ========== 목표 회차 아님 팝업 (날짜/시간 선택 단계) ========== -->
+  <div id="not-target-popup" class="popup-overlay hidden">
+    <div class="popup-box">
+      <h3>목표 회차가 아닙니다!</h3>
+      <p>오른쪽 위에 제시된 <strong>목표 날짜/시간</strong>과 같은 버튼을 눌러 주세요.</p>
+      <button class="btn-primary" id="btn-not-target-close">확인</button>
+    </div>
+  </div>
+
+  <script src="js/config.js?v=20261015f"></script>
+  <script src="js/app.js?v=20261019c"></script>
+</body>
+</html>
